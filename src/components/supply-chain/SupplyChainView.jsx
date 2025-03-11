@@ -687,22 +687,10 @@ const NodeModal = ({
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Status
             </label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              disabled={isSupplyChainFinalized}
-            >
-              <option value="pending">Pending</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="in_transit">In Transit</option>
-              <option value="processing">Processing</option>
-              <option value="created">Created</option>
-              <option value="error">Error</option>
-              <option value="rejected">Rejected</option>
-            </select>
+            <div className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 bg-gray-100">
+              {node ? node.data.status : 'pending'} {/* Display current status for existing nodes or pending for new */}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Status is managed automatically by the system</p>
           </div>
           
           <div className="mb-6">
