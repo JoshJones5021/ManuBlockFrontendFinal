@@ -1,3 +1,6 @@
+// src/services/auth.js
+// Authentication service for login, register, and wallet connection
+
 import api from '../utils/axios';
 
 const authService = {
@@ -19,6 +22,10 @@ const authService = {
   
   getUserProfile: (userId) => {
     return api.get(`/users/${userId}`);
+  },
+
+  getAllRoles: () => {
+    return api.get('/users/roles');
   }
 };
 

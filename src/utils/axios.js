@@ -1,7 +1,12 @@
+// src/utils/axios.js
+// This file configures the base API setup with interceptors for authentication
+
 import axios from 'axios';
 
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+
 const instance = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -29,7 +34,7 @@ instance.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear local storage and redirect to login
+      // Clear local storage and redirect to login on auth errors
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

@@ -1,41 +1,24 @@
+// src/components/common/Navbar.jsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import WalletConnector from './WalletConnector';
 
 const Navbar = () => {
   const { currentUser, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showWalletModal, setShowWalletModal] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
-  };
-
-  const handleWalletConnect = async () => {
-    try {
-      // Check if MetaMask is installed
-      if (window.ethereum) {
-        // Request account access
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setWalletAddress(accounts[0]);
-      } else {
-        alert('MetaMask is not installed. Please install it to connect your wallet.');
-      }
-    } catch (error) {
-      console.error('Error connecting to MetaMask', error);
-    }
   };
 
   const toggleDropdown = () => {
     setShowDropdown(!showDropdown);
   };
 
-  const toggleWalletModal = () => {
-    setShowWalletModal(!showWalletModal);
-    if (!showWalletModal) {
-      setWalletAddress('');
-    }
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   // Get role display name with proper capitalization
@@ -70,104 +53,138 @@ const Navbar = () => {
             </div>
           </div>
           
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center">
+            <button
+              onClick={toggleMobileMenu}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+            >
+              <span className="sr-only">Open main menu</span>
+              {/* Icon when menu is closed. */}
+              <svg
+                className={`${isMobileMenuOpen ? 'hidden' : 'block'} h-6 w-6`}
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              {/* Icon when menu is open. */}
+              <svg
+                className={`${isMobileMenuOpen ? 'block' : 'hidden'} h-6 w-6`}
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
           {/* User Menu */}
           {currentUser && (
-            <div className="relative">
-              <div className="flex items-center">
-                {/* Wallet Status */}
-                <button 
-                  className="mr-4 flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  onClick={toggleWalletModal}
-                >
-                  {currentUser.walletAddress ? (
-                    <span>
-                      Wallet Connected: {`${currentUser.walletAddress.substring(0, 6)}...${currentUser.walletAddress.substring(38)}`}
-                    </span>
-                  ) : (
-                    <span>Connect Wallet</span>
-                  )}
-                </button>
+            <div className="hidden md:flex items-center">
+              {/* Wallet Connector Component */}
+              <div className="mr-4">
+                <WalletConnector />
+              </div>
 
+              <div className="relative">
                 <button onClick={toggleDropdown} className="flex items-center">
                   <span className="mr-2">{currentUser.username}</span>
                   <div className="bg-gray-300 text-gray-800 rounded-full p-1 text-xs font-semibold">
                     {getRoleDisplay(currentUser.role)}
                   </div>
                 </button>
-              </div>
-              
-              {/* Dropdown Menu */}
-              {showDropdown && (
-                <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                  <div className="py-1" role="menu" aria-orientation="vertical">
-                    <Link 
-                      to="/profile" 
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowDropdown(false)}
-                    >
-                      Profile
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Logout
-                    </button>
+                
+                {/* Dropdown Menu */}
+                {showDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                    <div className="py-1" role="menu" aria-orientation="vertical">
+                      <Link 
+                        to="/profile" 
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowDropdown(false)}
+                      >
+                        Profile
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Logout
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
       
-      {/* Wallet Connect Modal */}
-      {showWalletModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Connect Blockchain Wallet</h3>
-            
-            {currentUser.walletAddress ? (
-              <div>
-                <p className="mb-4">Current wallet address:</p>
-                <p className="p-2 bg-gray-100 rounded break-all font-mono text-sm">{currentUser.walletAddress}</p>
-                <div className="flex justify-between mt-6">
-                  <button 
-                    onClick={() => setShowWalletModal(false)}
-                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                  >
-                    Close
-                  </button>
-                  <button 
-                    onClick={handleWalletConnect}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    Reconnect
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p className="mb-4">Connect your wallet to interact with blockchain functions:</p>
-                <div className="mt-4">
-                  <button 
-                    onClick={handleWalletConnect}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mb-2"
-                  >
-                    Connect with MetaMask
-                  </button>
-                  <button 
-                    onClick={() => setShowWalletModal(false)}
-                    className="w-full px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Mobile menu, show/hide based on menu state */}
+      <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:hidden`}>
+        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+          <Link 
+            to="/dashboard" 
+            className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-700"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            Dashboard
+          </Link>
+          <Link 
+            to="/supply-chains" 
+            className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-700"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            Supply Chains
+          </Link>
+          {currentUser?.role === 'ADMIN' && (
+            <Link 
+              to="/users" 
+              className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-700"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              User Management
+            </Link>
+          )}
         </div>
-      )}
+        
+        {/* Mobile user menu */}
+        {currentUser && (
+          <div className="pt-4 pb-3 border-t border-gray-700">
+            <div className="flex items-center px-5">
+              <div className="ml-3">
+                <div className="text-base font-medium text-white">{currentUser.username}</div>
+                <div className="text-sm font-medium text-gray-400">{currentUser.email}</div>
+              </div>
+            </div>
+            <div className="mt-3 px-2 space-y-1">
+              <div className="mb-2">
+                <WalletConnector />
+              </div>
+              <Link 
+                to="/profile" 
+                className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-700"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-700"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </nav>
   );
 };

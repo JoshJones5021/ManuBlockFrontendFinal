@@ -1,3 +1,6 @@
+// src/services/api.js
+// Consolidated API services for different user roles
+
 import api from '../utils/axios';
 
 // Admin Services
@@ -104,21 +107,46 @@ const distributorService = {
   }
 };
 
-// Supply Chain Services
-const supplyChainService = {
-  getSupplyChains: () => {
-    return api.get('/supply-chains');
+// Blockchain and Item Tracing Services
+const blockchainService = {
+  // Tracing items
+  getItemsBySupplyChain: (supplyChainId) => {
+    return api.get(`/tracing/items/${supplyChainId}`);
   },
-  getSupplyChainsByUser: (userId) => {
-    return api.get(`/supply-chains/user/${userId}`);
+  getItemsByOwner: (ownerId) => {
+    return api.get(`/tracing/items/owner/${ownerId}`);
   },
-  createSupplyChain: (chainData) => {
-    return api.post('/supply-chains/create', chainData);
+  getBlockchainItemDetails: (itemId) => {
+    return api.get(`/tracing/blockchain/item/${itemId}`);
   },
-  getSupplyChainById: (chainId) => {
-    return api.get(`/supply-chains/${chainId}`);
+  traceItemHistory: (itemId) => {
+    return api.get(`/tracing/item/${itemId}/trace`);
+  },
+  
+  // Node status management
+  updateNodeStatus: (nodeId, status) => {
+    return api.put(`/node-status/${nodeId}`, { status });
+  },
+  associateNodeWithItem: (nodeId, blockchainItemId) => {
+    return api.post(`/node-status/${nodeId}/associate/${blockchainItemId}`);
+  },
+  syncAllNodeStatuses: () => {
+    return api.post('/node-status/sync');
   }
 };
+
+const supplyChainService = {
+    getSupplyChains: async () => {
+      // Implementation
+    },
+    getSupplyChainsByUser: async (userId) => {
+      // Implementation
+    },
+    createSupplyChain: async (data) => {
+      // Implementation
+    },
+    // Add other methods as needed
+  };
 
 export { 
   adminService,
@@ -126,5 +154,6 @@ export {
   supplierService,
   manufacturerService,
   distributorService,
+  blockchainService,
   supplyChainService
 };
