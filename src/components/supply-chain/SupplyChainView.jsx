@@ -1,20 +1,26 @@
-// src/components/supply-chain/SupplyChainView.jsx - Enhanced version
-import React, { useState, useEffect, useCallback } from 'react';
+// src/components/supply-chain/SupplyChainView.jsx - With Edge Deletion
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
   applyEdgeChanges,
   applyNodeChanges,
-  MarkerType
+  MarkerType,
+  addEdge,
+  useNodesState,
+  useEdgesState
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useParams, useNavigate } from 'react-router-dom';
 import supplyChainService from '../../services/supplyChain';
 import { adminService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import CustomNode from './CustomNode';
 
-// Custom node types could be defined here
-const nodeTypes = {};
+// Define node types
+const nodeTypes = {
+  custom: CustomNode
+};
 
 // Project roles - excluding Admin which is hidden from node assignment
 const PROJECT_ROLES = [
@@ -30,18 +36,61 @@ const SupplyChainView = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   
-  const [nodes, setNodes] = useState([]);
-  const [edges, setEdges] = useState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [supplyChain, setSupplyChain] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
-  const [showEdgeModal, setShowEdgeModal] = useState(false);
-  const [isCreatingEdge, setIsCreatingEdge] = useState(false);
-  const [edgeSource, setEdgeSource] = useState(null);
+  const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
+  const [nodeToDelete, setNodeToDelete] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState('');
   const [users, setUsers] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
+  const [isSupplyChainFinalized, setIsSupplyChainFinalized] = useState(false);
+
+  // Actual node deletion
+  const deleteNode = useCallback(async (nodeId) => {
+    try {
+      // Make the delete request
+      await supplyChainService.deleteNode(chainId, nodeId);
+      
+      // Update local state without refetching
+      setNodes(nodes => nodes.filter(node => node.id !== nodeId.toString()));
+      
+      // Remove any connected edges
+      setEdges(edges => edges.filter(edge => edge.source !== nodeId.toString() && edge.target !== nodeId.toString()));
+    } catch (err) {
+      console.error('Error deleting node:', err);
+      setError('Failed to delete node. Please try again.');
+    }
+  }, [chainId, setNodes, setEdges]);
+
+  // Handle node deletion with dependency check
+  const handleNodeDelete = useCallback(async (nodeId) => {
+    if (isSupplyChainFinalized) {
+      setError("Cannot delete nodes in a finalized supply chain.");
+      return;
+    }
+  
+    // First check if the node has any connected edges
+    const hasConnectedEdges = edges.some(
+      edge => edge.source === nodeId.toString() || edge.target === nodeId.toString()
+    );
+  
+    if (hasConnectedEdges) {
+      if (window.confirm(
+        "This node has connections that will also be deleted. Are you sure you want to proceed?"
+      )) {
+        // User confirmed, proceed with deletion
+        deleteNode(nodeId);
+      }
+    } else {
+      // No connected edges, safe to delete
+      deleteNode(nodeId);
+    }
+  }, [edges, isSupplyChainFinalized, deleteNode]);
 
   // Fetch the supply chain data
   const fetchSupplyChain = useCallback(async () => {
@@ -52,19 +101,19 @@ const SupplyChainView = () => {
       const supplyChainData = response.data;
       
       setSupplyChain(supplyChainData);
+      setIsSupplyChainFinalized(supplyChainData.status === 'FINALIZED');
       
       // Transform nodes and edges for ReactFlow
       const formattedNodes = supplyChainData.nodes.map(node => ({
         id: node.id.toString(),
-        type: 'default',
+        type: 'custom', // Using our custom node type
         position: { x: node.x, y: node.y },
         data: { 
           label: node.name,
           role: node.role, 
           status: node.status,
           assignedUserId: node.assignedUserId
-        },
-        className: `node-status-${node.status}`
+        }
       }));
       
       const formattedEdges = supplyChainData.edges.map(edge => ({
@@ -90,20 +139,18 @@ const SupplyChainView = () => {
     } finally {
       setLoading(false);
     }
-  }, [chainId]);
+  }, [chainId, setNodes, setEdges]);
 
   // Fetch users for assignment
   const fetchUsers = useCallback(async () => {
     try {
       setUserLoading(true);
-      // Use adminService.getAllUsers() to get the list of users
       const response = await adminService.getAllUsers();
       if (response && response.data) {
         setUsers(response.data);
       }
     } catch (err) {
       console.error('Error fetching users:', err);
-      // Don't block the UI if user fetching fails
       setUsers([]);
     } finally {
       setUserLoading(false);
@@ -114,22 +161,12 @@ const SupplyChainView = () => {
     fetchSupplyChain();
   }, [fetchSupplyChain]);
 
-  // Handle node changes (position, selection)
-  const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  );
-
-  // Handle edge changes
-  const onEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
-  );
-
-  // Save node position after dragging
+  // Handle node drag to update position
   const onNodeDragStop = useCallback(
     async (event, node) => {
-      // Update node position in the database
+      // Don't make API calls if the supply chain is finalized
+      if (isSupplyChainFinalized) return;
+      
       try {
         await supplyChainService.updateNode(chainId, node.id, {
           x: node.position.x,
@@ -139,75 +176,206 @@ const SupplyChainView = () => {
         console.error('Error updating node position:', err);
       }
     },
-    [chainId]
+    [chainId, isSupplyChainFinalized]
   );
 
   // Handle node click
   const onNodeClick = useCallback(
     (event, node) => {
-      if (isCreatingEdge) {
-        // If we're creating an edge, this is the target node
-        if (edgeSource && edgeSource !== node.id) {
-          // Create edge between source and target
-          createEdge(edgeSource, node.id);
-          setIsCreatingEdge(false);
-          setEdgeSource(null);
-        } else if (!edgeSource) {
-          // If no source selected yet, set this as source
-          setEdgeSource(node.id);
-        }
-      } else {
-        // Regular node click - select the node
-        setSelectedNode(node);
-        // Fetch users when a node is selected
-        fetchUsers();
-        setShowNodeModal(true);
-      }
+      setSelectedNode(node);
+      fetchUsers();
+      setShowNodeModal(true);
     },
-    [isCreatingEdge, edgeSource, fetchUsers]
+    [fetchUsers]
   );
 
-  // Create a new edge between nodes
-  const createEdge = async (sourceId, targetId) => {
-    try {
-      const response = await supplyChainService.addEdge(chainId, {
-        source: { id: sourceId },
-        target: { id: targetId },
-        animated: false,
-        strokeColor: '#666',
-        strokeWidth: 1
-      });
-      
-      // Refresh the supply chain to show the new edge
-      fetchSupplyChain();
-    } catch (err) {
-      console.error('Error creating edge:', err);
-      setError('Failed to create connection between nodes.');
-    }
-  };
+  // Handle edge click for deletion
+  const onEdgeClick = useCallback(
+    (event, edge) => {
+      // Don't allow deletion if the supply chain is finalized
+      if (isSupplyChainFinalized) {
+        setError("Supply chain is finalized. Connections cannot be removed.");
+        return;
+      }
 
-  // Handle starting edge creation
-  const startEdgeCreation = () => {
-    setIsCreatingEdge(true);
-    setEdgeSource(null);
-  };
+      // Show confirmation dialog
+      if (window.confirm("Are you sure you want to delete this connection?")) {
+        deleteEdge(edge.id);
+      }
+    },
+    [isSupplyChainFinalized]
+  );
+
+  // Delete an edge
+  const deleteEdge = useCallback(async (edgeId) => {
+    try {
+      await supplyChainService.deleteEdge(chainId, edgeId);
+      
+      // Update local state by removing the edge
+      setEdges(edges => edges.filter(edge => edge.id !== edgeId));
+    } catch (err) {
+      console.error('Error deleting edge:', err);
+      setError('Failed to delete connection.');
+    }
+  }, [chainId, setEdges]);
+
+  // Handle edge connection
+  const onConnect = useCallback(
+    async (params) => {
+      // Don't make connections if the supply chain is finalized
+      if (isSupplyChainFinalized) {
+        setError("Supply chain is finalized. No new connections can be added.");
+        return;
+      }
+
+      // Check for circular connections (simplified check)
+      if (params.source === params.target) {
+        setError("Cannot connect a node to itself.");
+        return;
+      }
+
+      try {
+        // Create the edge in the database
+        const response = await supplyChainService.addEdge(chainId, {
+          source: { id: params.source },
+          target: { id: params.target },
+          animated: false,
+          strokeColor: '#666',
+          strokeWidth: 1
+        });
+
+        // Add to local state without refetching everything
+        const newEdge = response.data;
+        setEdges((eds) => 
+          addEdge({
+            id: newEdge.id.toString(),
+            source: params.source,
+            target: params.target,
+            animated: false,
+            style: { stroke: '#666', strokeWidth: 1 },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#666',
+            }
+          }, eds)
+        );
+      } catch (err) {
+        console.error('Error creating edge:', err);
+        setError('Failed to create connection between nodes.');
+      }
+    },
+    [chainId, setEdges, isSupplyChainFinalized]
+  );
 
   // Add a new node to the supply chain
-  const addNode = async (nodeData) => {
+  const addNode = useCallback(async (nodeData) => {
+    if (isSupplyChainFinalized) {
+      setError("Supply chain is finalized. No new nodes can be added.");
+      return;
+    }
+
     try {
       // Set default position if not provided
       if (!nodeData.x) nodeData.x = Math.random() * 500;
       if (!nodeData.y) nodeData.y = Math.random() * 500;
       
       const response = await supplyChainService.addNode(chainId, nodeData);
+      const newNode = response.data;
       
-      // Refresh the supply chain to show the new node
-      fetchSupplyChain();
+      // Add to local state without refetching everything
+      setNodes(nodes => [
+        ...nodes, 
+        {
+          id: newNode.id.toString(),
+          type: 'custom',
+          position: { x: newNode.x, y: newNode.y },
+          data: { 
+            label: newNode.name,
+            role: newNode.role, 
+            status: newNode.status,
+            assignedUserId: newNode.assignedUserId
+          }
+        }
+      ]);
+      
+      setShowNodeModal(false);
+      setSelectedNode(null);
     } catch (err) {
       console.error('Error adding node:', err);
       setError('Failed to add node to the supply chain.');
     }
-  };
+  }, [chainId, setNodes, isSupplyChainFinalized]);
+
+  // Update an existing node
+  const updateNode = useCallback(async (nodeData) => {
+    if (isSupplyChainFinalized) {
+      setError("Supply chain is finalized. Nodes cannot be modified.");
+      return;
+    }
+
+    try {
+      const response = await supplyChainService.updateNode(chainId, nodeData.id, nodeData);
+      const updatedNode = response.data;
+      
+      // Update in local state without refetching everything
+      setNodes(nodes => 
+        nodes.map(node => 
+          node.id === updatedNode.id.toString() 
+            ? {
+                ...node,
+                data: {
+                  label: updatedNode.name,
+                  role: updatedNode.role,
+                  status: updatedNode.status,
+                  assignedUserId: updatedNode.assignedUserId
+                }
+              }
+            : node
+        )
+      );
+      
+      setShowNodeModal(false);
+      setSelectedNode(null);
+    } catch (err) {
+      console.error('Error updating node:', err);
+      setError('Failed to update node.');
+    }
+  }, [chainId, setNodes, isSupplyChainFinalized]);
+
+  // Finalize the supply chain
+  const finalizeSupplyChain = useCallback(async () => {
+    try {
+      // Check if there are any orphaned nodes
+      const orphanedNodes = nodes.filter(node => 
+        !edges.some(edge => 
+          edge.source === node.id || edge.target === node.id
+        )
+      );
+      
+      if (orphanedNodes.length > 0) {
+        setError(`There are ${orphanedNodes.length} disconnected nodes. Please connect or remove them before finalizing.`);
+        return;
+      }
+      
+      await supplyChainService.finalizeSupplyChain(chainId);
+      setIsSupplyChainFinalized(true);
+      setError(null);
+    } catch (err) {
+      console.error('Error finalizing supply chain:', err);
+      setError('Failed to finalize supply chain.');
+    }
+  }, [chainId, nodes, edges]);
+
+  // Clear the error message after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   if (loading) {
     return (
@@ -217,36 +385,36 @@ const SupplyChainView = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-        <strong className="font-bold">Error!</strong>
-        <span className="block sm:inline ml-2">{error}</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-screen w-full">
-      <div className="p-4 flex justify-between items-center bg-white shadow mb-4">
-        <h1 className="text-2xl font-semibold">{supplyChain?.name || 'Supply Chain'}</h1>
+    <div className="h-screen w-full flex flex-col">
+      <div className="p-4 flex justify-between items-center bg-white shadow mb-2">
+        <div>
+          <h1 className="text-2xl font-semibold">{supplyChain?.name || 'Supply Chain'}</h1>
+          {isSupplyChainFinalized && (
+            <div className="text-sm text-green-600 font-medium">Finalized</div>
+          )}
+        </div>
         <div className="flex space-x-2">
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onClick={() => {
-              setSelectedNode(null);
-              fetchUsers();
-              setShowNodeModal(true);
-            }}
-          >
-            Add Node
-          </button>
-          <button 
-            className={`px-4 py-2 ${isCreatingEdge ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded`}
-            onClick={startEdgeCreation}
-          >
-            {isCreatingEdge ? 'Select Source Node' : 'Create Connection'}
-          </button>
+          {!isSupplyChainFinalized && (
+            <>
+              <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={() => {
+                  setSelectedNode(null);
+                  fetchUsers();
+                  setShowNodeModal(true);
+                }}
+              >
+                Add Node
+              </button>
+              <button 
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                onClick={finalizeSupplyChain}
+              >
+                Finalize Chain
+              </button>
+            </>
+          )}
           <button 
             className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
             onClick={() => navigate('/supply-chains')}
@@ -256,16 +424,25 @@ const SupplyChainView = () => {
         </div>
       </div>
       
-      {isCreatingEdge && (
-        <div className="p-2 mb-4 bg-yellow-100 text-yellow-800 rounded">
-          {edgeSource 
-            ? 'Now click on the target node to create the connection' 
-            : 'Click on the source node to start the connection'
-          }
+      {error && (
+        <div className="p-3 mb-2 mx-4 bg-red-100 text-red-800 rounded-md flex justify-between items-center">
+          <span>{error}</span>
+          <button 
+            className="text-red-600 hover:text-red-800"
+            onClick={() => setError(null)}
+          >
+            ✕
+          </button>
         </div>
       )}
       
-      <div style={{ height: 'calc(100vh - 120px)' }}>
+      {isSupplyChainFinalized && (
+        <div className="p-3 mb-2 mx-4 bg-blue-100 text-blue-800 rounded-md">
+          This supply chain is finalized. Nodes and connections cannot be added, removed, or modified.
+        </div>
+      )}
+      
+      <div className="flex-1">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -273,14 +450,18 @@ const SupplyChainView = () => {
           onEdgesChange={onEdgesChange}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
-          onPaneClick={() => {
-            setSelectedNode(null);
-            setShowNodeModal(false);
-          }}
+          onEdgeClick={onEdgeClick}
+          onConnect={onConnect}
           nodeTypes={nodeTypes}
           fitView
+          attributionPosition="bottom-left"
         >
-          <Background />
+          <Background 
+            color="#aaa" 
+            gap={16} 
+            size={1} 
+            variant="dots" 
+          />
           <Controls />
         </ReactFlow>
       </div>
@@ -293,23 +474,46 @@ const SupplyChainView = () => {
             setShowNodeModal(false);
             setSelectedNode(null);
           }}
-          onSave={addNode}
-          onDelete={async (nodeId) => {
-            try {
-              await supplyChainService.deleteNode(chainId, nodeId);
-              fetchSupplyChain();
-              setShowNodeModal(false);
-              setSelectedNode(null);
-            } catch (err) {
-              console.error('Error deleting node:', err);
-            }
-          }}
+          onSave={selectedNode ? updateNode : addNode}
+          onDelete={handleNodeDelete}
+          isSupplyChainFinalized={isSupplyChainFinalized}
           supplyChainId={chainId}
           users={users}
           userLoading={userLoading}
           projectRoles={PROJECT_ROLES}
           currentUser={currentUser}
         />
+      )}
+      
+      {/* Confirm Delete Modal */}
+      {showConfirmDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4 text-red-600">
+              Warning: Dependencies Detected
+            </h2>
+            
+            <p className="mb-6">{deleteMessage}</p>
+            
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowConfirmDeleteModal(false)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteNode(nodeToDelete);
+                  setShowConfirmDeleteModal(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Force Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -321,6 +525,7 @@ const NodeModal = ({
   onClose, 
   onSave, 
   onDelete, 
+  isSupplyChainFinalized,
   supplyChainId, 
   users, 
   userLoading, 
@@ -409,6 +614,12 @@ const NodeModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (isSupplyChainFinalized) {
+      alert("Supply chain is finalized. Changes are not allowed.");
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -422,7 +633,6 @@ const NodeModal = ({
         // Create new node
         await onSave(formData);
       }
-      onClose();
     } catch (err) {
       console.error('Error saving node:', err);
     } finally {
@@ -435,6 +645,7 @@ const NodeModal = ({
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h2 className="text-xl font-semibold mb-4">
           {node ? 'Edit Node' : 'Add New Node'}
+          {isSupplyChainFinalized && <span className="text-sm text-red-500 ml-2">(Read Only)</span>}
         </h2>
         
         <form onSubmit={handleSubmit}>
@@ -449,6 +660,7 @@ const NodeModal = ({
               onChange={handleChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
+              disabled={isSupplyChainFinalized}
             />
           </div>
           
@@ -461,6 +673,7 @@ const NodeModal = ({
               value={formData.role}
               onChange={handleRoleChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              disabled={isSupplyChainFinalized}
             >
               {projectRoles.map(role => (
                 <option key={role.value} value={role.value}>
@@ -479,11 +692,16 @@ const NodeModal = ({
               value={formData.status}
               onChange={handleChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              disabled={isSupplyChainFinalized}
             >
               <option value="pending">Pending</option>
               <option value="active">Active</option>
               <option value="completed">Completed</option>
+              <option value="in_transit">In Transit</option>
+              <option value="processing">Processing</option>
+              <option value="created">Created</option>
               <option value="error">Error</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
           
@@ -496,7 +714,7 @@ const NodeModal = ({
               value={formData.assignedUserId}
               onChange={handleUserChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              disabled={userLoading}
+              disabled={userLoading || isSupplyChainFinalized}
             >
               <option value="">Not Assigned</option>
               
@@ -524,7 +742,7 @@ const NodeModal = ({
           
           <div className="flex justify-between">
             <div>
-              {node && (
+              {node && !isSupplyChainFinalized && (
                 <button
                   type="button"
                   onClick={() => onDelete(node.id)}
@@ -542,13 +760,15 @@ const NodeModal = ({
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              >
-                {loading ? 'Saving...' : 'Save'}
-              </button>
+              {!isSupplyChainFinalized && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
+                  {loading ? 'Saving...' : 'Save'}
+                </button>
+              )}
             </div>
           </div>
         </form>
