@@ -1,4 +1,4 @@
-// src/services/api.js
+// src/services/api.js - Updated version with proper implementations
 // Consolidated API services for different user roles
 
 import api from '../utils/axios';
@@ -107,6 +107,28 @@ const distributorService = {
   }
 };
 
+// Supply Chain Services - Properly implemented now
+const supplyChainService = {
+  getSupplyChains: () => {
+    return api.get('/supply-chains');
+  },
+  getSupplyChainsByUser: (userId) => {
+    return api.get(`/supply-chains/user/${userId}`);
+  },
+  createSupplyChain: (data) => {
+    return api.post('/supply-chains/create', data);
+  },
+  getSupplyChainById: (id) => {
+    return api.get(`/supply-chains/${id}`);
+  },
+  updateSupplyChain: (id, data) => {
+    return api.put(`/supply-chains/${id}`, data);
+  },
+  deleteSupplyChain: (id) => {
+    return api.delete(`/supply-chains/${id}`);
+  }
+};
+
 // Blockchain and Item Tracing Services
 const blockchainService = {
   // Tracing items
@@ -134,19 +156,6 @@ const blockchainService = {
     return api.post('/node-status/sync');
   }
 };
-
-const supplyChainService = {
-    getSupplyChains: async () => {
-      // Implementation
-    },
-    getSupplyChainsByUser: async (userId) => {
-      // Implementation
-    },
-    createSupplyChain: async (data) => {
-      // Implementation
-    },
-    // Add other methods as needed
-  };
 
 export { 
   adminService,

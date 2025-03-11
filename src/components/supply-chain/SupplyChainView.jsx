@@ -1,3 +1,4 @@
+// src/components/supply-chain/SupplyChainView.jsx - Enhanced version
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactFlow, { 
   Background, 
@@ -9,10 +10,20 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useParams, useNavigate } from 'react-router-dom';
 import supplyChainService from '../../services/supplyChain';
+import { adminService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 // Custom node types could be defined here
 const nodeTypes = {};
+
+// Project roles - excluding Admin which is hidden from node assignment
+const PROJECT_ROLES = [
+  { value: "Unassigned", label: "Unassigned" },
+  { value: "Supplier", label: "Supplier" },
+  { value: "Manufacturer", label: "Manufacturer" },
+  { value: "Distributor", label: "Distributor" },
+  { value: "Customer", label: "Customer" }
+];
 
 const SupplyChainView = () => {
   const { chainId } = useParams();
@@ -29,6 +40,8 @@ const SupplyChainView = () => {
   const [showEdgeModal, setShowEdgeModal] = useState(false);
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeSource, setEdgeSource] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [userLoading, setUserLoading] = useState(false);
 
   // Fetch the supply chain data
   const fetchSupplyChain = useCallback(async () => {
@@ -79,6 +92,24 @@ const SupplyChainView = () => {
     }
   }, [chainId]);
 
+  // Fetch users for assignment
+  const fetchUsers = useCallback(async () => {
+    try {
+      setUserLoading(true);
+      // Use adminService.getAllUsers() to get the list of users
+      const response = await adminService.getAllUsers();
+      if (response && response.data) {
+        setUsers(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      // Don't block the UI if user fetching fails
+      setUsers([]);
+    } finally {
+      setUserLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSupplyChain();
   }, [fetchSupplyChain]);
@@ -121,14 +152,19 @@ const SupplyChainView = () => {
           createEdge(edgeSource, node.id);
           setIsCreatingEdge(false);
           setEdgeSource(null);
+        } else if (!edgeSource) {
+          // If no source selected yet, set this as source
+          setEdgeSource(node.id);
         }
       } else {
         // Regular node click - select the node
         setSelectedNode(node);
+        // Fetch users when a node is selected
+        fetchUsers();
         setShowNodeModal(true);
       }
     },
-    [isCreatingEdge, edgeSource]
+    [isCreatingEdge, edgeSource, fetchUsers]
   );
 
   // Create a new edge between nodes
@@ -197,7 +233,11 @@ const SupplyChainView = () => {
         <div className="flex space-x-2">
           <button 
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onClick={() => setShowNodeModal(true)}
+            onClick={() => {
+              setSelectedNode(null);
+              fetchUsers();
+              setShowNodeModal(true);
+            }}
           >
             Add Node
           </button>
@@ -265,6 +305,10 @@ const SupplyChainView = () => {
             }
           }}
           supplyChainId={chainId}
+          users={users}
+          userLoading={userLoading}
+          projectRoles={PROJECT_ROLES}
+          currentUser={currentUser}
         />
       )}
     </div>
@@ -272,7 +316,17 @@ const SupplyChainView = () => {
 };
 
 // Node Modal Component
-const NodeModal = ({ node, onClose, onSave, onDelete, supplyChainId }) => {
+const NodeModal = ({ 
+  node, 
+  onClose, 
+  onSave, 
+  onDelete, 
+  supplyChainId, 
+  users, 
+  userLoading, 
+  projectRoles,
+  currentUser
+}) => {
   const [formData, setFormData] = useState({
     name: node?.data?.label || '',
     role: node?.data?.role || 'Unassigned',
@@ -281,32 +335,76 @@ const NodeModal = ({ node, onClose, onSave, onDelete, supplyChainId }) => {
     x: node?.position?.x || Math.random() * 500,
     y: node?.position?.y || Math.random() * 500
   });
-  const [users, setUsers] = useState([]);
+  
   const [loading, setLoading] = useState(false);
-
-  // Fetch users for assignment
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch('/api/users');
-        if (response.ok) {
-          const data = await response.json();
-          setUsers(data);
-        }
-      } catch (err) {
-        console.error('Error fetching users:', err);
-      }
-    };
+  
+  // Get filtered users based on selected role
+  const filteredUsers = users.filter(user => {
+    // If no role is selected, show all users
+    if (formData.role === 'Unassigned') return true;
     
-    fetchUsers();
-  }, []);
+    // Match the capitalization format (Role vs ROLE)
+    const userRole = user.role.charAt(0) + user.role.slice(1).toLowerCase();
+    return userRole === formData.role;
+  });
+
+  const handleRoleChange = (e) => {
+    const role = e.target.value;
+    
+    // Update the role
+    setFormData(prev => ({
+      ...prev,
+      role: role,
+      // Clear the assigned user if the role changes
+      assignedUserId: ''
+    }));
+  };
+
+  const handleUserChange = (e) => {
+    const userId = e.target.value;
+    
+    if (userId) {
+      // Find the selected user to get their role
+      const selectedUser = users.find(user => user.id.toString() === userId.toString());
+      
+      if (selectedUser) {
+        // Format role to match the expected format 
+        // (e.g., from "SUPPLIER" to "Supplier")
+        const formattedRole = selectedUser.role.charAt(0) + 
+                             selectedUser.role.slice(1).toLowerCase();
+        
+        // Update both the user and the role
+        setFormData(prev => ({
+          ...prev,
+          assignedUserId: userId,
+          role: formattedRole
+        }));
+      } else {
+        // Just update the user ID if we couldn't find the user
+        setFormData(prev => ({
+          ...prev,
+          assignedUserId: userId
+        }));
+      }
+    } else {
+      // If no user is selected, just update the user ID
+      setFormData(prev => ({
+        ...prev,
+        assignedUserId: ''
+      }));
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // For other fields, just update normally
+    if (name !== 'role' && name !== 'assignedUserId') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -361,16 +459,14 @@ const NodeModal = ({ node, onClose, onSave, onDelete, supplyChainId }) => {
             <select
               name="role"
               value={formData.role}
-              onChange={handleChange}
+              onChange={handleRoleChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             >
-              <option value="Unassigned">Unassigned</option>
-              <option value="Supplier">Supplier</option>
-              <option value="Manufacturer">Manufacturer</option>
-              <option value="Distributor">Distributor</option>
-              <option value="Customer">Customer</option>
-              <option value="Warehouse">Warehouse</option>
-              <option value="QA">Quality Assurance</option>
+              {projectRoles.map(role => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
             </select>
           </div>
           
@@ -398,16 +494,32 @@ const NodeModal = ({ node, onClose, onSave, onDelete, supplyChainId }) => {
             <select
               name="assignedUserId"
               value={formData.assignedUserId}
-              onChange={handleChange}
+              onChange={handleUserChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              disabled={userLoading}
             >
               <option value="">Not Assigned</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.username} ({user.role})
-                </option>
-              ))}
+              
+              {userLoading ? (
+                <option disabled>Loading users...</option>
+              ) : filteredUsers.length > 0 ? (
+                filteredUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.username} ({user.role})
+                  </option>
+                ))
+              ) : (
+                formData.role !== 'Unassigned' && (
+                  <option disabled>No {formData.role.toLowerCase()} users available</option>
+                )
+              )}
             </select>
+            
+            {formData.role !== 'Unassigned' && filteredUsers.length === 0 && !userLoading && (
+              <p className="mt-1 text-sm text-orange-600">
+                No users with the {formData.role} role are available.
+              </p>
+            )}
           </div>
           
           <div className="flex justify-between">
