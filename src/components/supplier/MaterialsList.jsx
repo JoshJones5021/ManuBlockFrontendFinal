@@ -1,7 +1,7 @@
 // src/components/supplier/MaterialsList.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supplierService } from '../../services/api';
+import { supplierService, supplyChainService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import MaterialCreationForm from './MaterialCreationForm';
 
@@ -42,19 +42,11 @@ const MaterialsList = () => {
 
   const fetchSupplyChains = async () => {
     try {
-      // This would be replaced with an actual API call to get assigned supply chains
-      const response = await fetch('/api/supply-chains/user/' + currentUser.id);
-      if (response.ok) {
-        const data = await response.json();
-        setSupplyChains(data);
-      }
+      const response = await supplyChainService.getSupplyChainsByUser(currentUser.id);
+      setSupplyChains(response.data);
     } catch (err) {
       console.error('Error fetching supply chains:', err);
-      // Use mock data as fallback for demo purposes
-      setSupplyChains([
-        { id: 1, name: 'Automotive Supply Chain' },
-        { id: 2, name: 'Electronics Supply Chain' }
-      ]);
+      setSupplyChains([]);
     }
   };
 

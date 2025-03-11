@@ -52,6 +52,12 @@ const SupplyChainView = () => {
 
   // Actual node deletion
   const deleteNode = useCallback(async (nodeId) => {
+    // Prevent modification if supply chain is finalized
+    if (isSupplyChainFinalized) {
+      setError("Cannot delete nodes in a finalized supply chain.");
+      return;
+    }
+
     try {
       // Make the delete request
       await supplyChainService.deleteNode(chainId, nodeId);
@@ -65,7 +71,7 @@ const SupplyChainView = () => {
       console.error('Error deleting node:', err);
       setError('Failed to delete node. Please try again.');
     }
-  }, [chainId, setNodes, setEdges]);
+  }, [chainId, setNodes, setEdges, isSupplyChainFinalized]);
 
   // Handle node deletion with dependency check
   const handleNodeDelete = useCallback(async (nodeId) => {
@@ -101,7 +107,7 @@ const SupplyChainView = () => {
       const supplyChainData = response.data;
       
       setSupplyChain(supplyChainData);
-      setIsSupplyChainFinalized(supplyChainData.status === 'FINALIZED');
+      setIsSupplyChainFinalized(supplyChainData.blockchainStatus === 'FINALIZED');
       
       // Transform nodes and edges for ReactFlow
       const formattedNodes = supplyChainData.nodes.map(node => ({
@@ -113,7 +119,9 @@ const SupplyChainView = () => {
           role: node.role, 
           status: node.status,
           assignedUserId: node.assignedUserId
-        }
+        },
+        // Make nodes not draggable if supply chain is finalized
+        draggable: supplyChainData.blockchainStatus !== 'FINALIZED'
       }));
       
       const formattedEdges = supplyChainData.edges.map(edge => ({
@@ -128,7 +136,9 @@ const SupplyChainView = () => {
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: edge.strokeColor || '#666',
-        }
+        },
+        // Add interactivity flag for finalized state
+        interactable: supplyChainData.blockchainStatus !== 'FINALIZED'
       }));
       
       setNodes(formattedNodes);
@@ -161,7 +171,7 @@ const SupplyChainView = () => {
     fetchSupplyChain();
   }, [fetchSupplyChain]);
 
-  // Handle node drag to update position
+  // Modified to prevent changes if supply chain is finalized
   const onNodeDragStop = useCallback(
     async (event, node) => {
       // Don't make API calls if the supply chain is finalized
@@ -179,17 +189,23 @@ const SupplyChainView = () => {
     [chainId, isSupplyChainFinalized]
   );
 
-  // Handle node click
+  // Modified to prevent node editing if finalized
   const onNodeClick = useCallback(
     (event, node) => {
+      // Prevent editing if the supply chain is finalized
+      if (isSupplyChainFinalized) {
+        setError("Supply chain is finalized. Nodes cannot be modified.");
+        return;
+      }
+      
       setSelectedNode(node);
       fetchUsers();
       setShowNodeModal(true);
     },
-    [fetchUsers]
+    [fetchUsers, isSupplyChainFinalized]
   );
 
-  // Handle edge click for deletion
+  // Modified edge click for deletion with finalized check
   const onEdgeClick = useCallback(
     (event, edge) => {
       // Don't allow deletion if the supply chain is finalized
@@ -208,6 +224,12 @@ const SupplyChainView = () => {
 
   // Delete an edge
   const deleteEdge = useCallback(async (edgeId) => {
+    // Extra check to prevent deletion if finalized
+    if (isSupplyChainFinalized) {
+      setError("Supply chain is finalized. Connections cannot be removed.");
+      return;
+    }
+    
     try {
       await supplyChainService.deleteEdge(chainId, edgeId);
       
@@ -217,9 +239,9 @@ const SupplyChainView = () => {
       console.error('Error deleting edge:', err);
       setError('Failed to delete connection.');
     }
-  }, [chainId, setEdges]);
+  }, [chainId, setEdges, isSupplyChainFinalized]);
 
-  // Handle edge connection
+  // Modified to prevent new connections if finalized
   const onConnect = useCallback(
     async (params) => {
       // Don't make connections if the supply chain is finalized
@@ -256,7 +278,9 @@ const SupplyChainView = () => {
             markerEnd: {
               type: MarkerType.ArrowClosed,
               color: '#666',
-            }
+            },
+            // Make sure new edges also respect finalized state
+            interactable: !isSupplyChainFinalized
           }, eds)
         );
       } catch (err) {
@@ -294,7 +318,9 @@ const SupplyChainView = () => {
             role: newNode.role, 
             status: newNode.status,
             assignedUserId: newNode.assignedUserId
-          }
+          },
+          // Make sure new nodes respect finalized state
+          draggable: !isSupplyChainFinalized
         }
       ]);
       
@@ -359,12 +385,25 @@ const SupplyChainView = () => {
       
       await supplyChainService.finalizeSupplyChain(chainId);
       setIsSupplyChainFinalized(true);
+      
+      // Update all nodes to be non-draggable
+      setNodes(nodes => nodes.map(node => ({
+        ...node,
+        draggable: false
+      })));
+      
+      // Update all edges to be non-interactable
+      setEdges(edges => edges.map(edge => ({
+        ...edge,
+        interactable: false
+      })));
+      
       setError(null);
     } catch (err) {
       console.error('Error finalizing supply chain:', err);
       setError('Failed to finalize supply chain.');
     }
-  }, [chainId, nodes, edges]);
+  }, [chainId, nodes, edges, setNodes, setEdges]);
 
   // Clear the error message after 5 seconds
   useEffect(() => {
@@ -376,6 +415,41 @@ const SupplyChainView = () => {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  // Custom handler for node changes that prevents modifications if finalized
+  const handleNodesChange = useCallback(
+    (changes) => {
+      // If the supply chain is finalized, only allow position changes for viewing
+      // but don't save them to the backend
+      if (isSupplyChainFinalized) {
+        // Filter out any changes that aren't position changes (like selection)
+        const allowedChanges = changes.filter(
+          change => change.type === 'position' || change.type === 'select'
+        );
+        onNodesChange(allowedChanges);
+      } else {
+        // Normal operation when not finalized
+        onNodesChange(changes);
+      }
+    },
+    [isSupplyChainFinalized, onNodesChange]
+  );
+
+  // Custom handler for edge changes that prevents modifications if finalized
+  const handleEdgesChange = useCallback(
+    (changes) => {
+      // If the supply chain is finalized, only allow selection changes
+      if (isSupplyChainFinalized) {
+        // Filter out any changes that aren't selection (no removal)
+        const allowedChanges = changes.filter(change => change.type === 'select');
+        onEdgesChange(allowedChanges);
+      } else {
+        // Normal operation when not finalized
+        onEdgesChange(changes);
+      }
+    },
+    [isSupplyChainFinalized, onEdgesChange]
+  );
 
   if (loading) {
     return (
@@ -446,8 +520,8 @@ const SupplyChainView = () => {
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
@@ -455,6 +529,11 @@ const SupplyChainView = () => {
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-left"
+          // Additional properties to control interactivity
+          nodesDraggable={!isSupplyChainFinalized}
+          nodesConnectable={!isSupplyChainFinalized}
+          elementsSelectable={true}
+          zoomOnDoubleClick={!isSupplyChainFinalized}
         >
           <Background 
             color="#aaa" 
@@ -467,7 +546,7 @@ const SupplyChainView = () => {
       </div>
       
       {/* Node Modal for creating/editing nodes */}
-      {showNodeModal && (
+      {showNodeModal && !isSupplyChainFinalized && (
         <NodeModal 
           node={selectedNode} 
           onClose={() => {
@@ -486,7 +565,7 @@ const SupplyChainView = () => {
       )}
       
       {/* Confirm Delete Modal */}
-      {showConfirmDeleteModal && (
+      {showConfirmDeleteModal && !isSupplyChainFinalized && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4 text-red-600">
