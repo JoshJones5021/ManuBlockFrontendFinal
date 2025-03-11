@@ -1,10 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { adminService } from '../../services/api';
 
 const Sidebar = () => {
-  const { currentUser } = useAuth();
-  const location = useLocation();
+    const { currentUser } = useAuth();
+    const location = useLocation();
+    const [adminWalletConnected, setAdminWalletConnected] = useState(false);
+
+  useEffect(() => {
+    const checkAdminWallet = async () => {
+      try {
+        // For admin users, check their own wallet
+        if (currentUser.role === 'ADMIN') {
+          setAdminWalletConnected(!!currentUser.walletAddress);
+        } else {
+          // For non-admin users, fetch admin users and check if any admin has a wallet
+          const response = await adminService.getAllUsers();
+          const admins = response.data.filter(user => user.role === 'ADMIN' && user.walletAddress);
+          setAdminWalletConnected(admins.length > 0);
+        }
+      } catch (error) {
+        console.error('Error checking admin wallet:', error);
+        setAdminWalletConnected(false);
+      }
+    };
+    
+    if (currentUser) {
+      checkAdminWallet();
+    }
+  }, [currentUser]);
   
   // If no user or role, don't render the sidebar
   if (!currentUser || !currentUser.role) {
@@ -102,9 +127,9 @@ const Sidebar = () => {
         <div className="px-4 py-2">
           <h3 className="text-sm font-medium text-gray-400">Blockchain Status</h3>
           <div className="mt-2 flex items-center">
-            <div className={`h-3 w-3 rounded-full mr-2 ${currentUser.walletAddress ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div className={`h-3 w-3 rounded-full mr-2 ${adminWalletConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <span className="text-sm">
-              {currentUser.walletAddress ? 'Wallet Connected' : 'No Wallet'}
+              {adminWalletConnected ? 'Enabled (Using Admin Wallet)' : 'Disabled (No Admin Wallet)'}
             </span>
           </div>
         </div>

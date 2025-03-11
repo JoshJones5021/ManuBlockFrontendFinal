@@ -1,4 +1,3 @@
-// src/components/dashboard/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AdminDashboard from './AdminDashboard';
@@ -23,7 +22,7 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  // Show wallet connection reminder if wallet not connected
+  // Show wallet connection reminder if wallet not connected for ADMIN users only
   const WalletReminder = () => {
     const { connectToMetaMask } = useAuth();
     
@@ -36,10 +35,10 @@ const Dashboard = () => {
             </svg>
           </div>
           <div className="ml-3 flex-1">
-            <h3 className="text-sm font-medium text-yellow-800">Blockchain Wallet Not Connected</h3>
+            <h3 className="text-sm font-medium text-yellow-800">Admin Wallet Not Connected</h3>
             <div className="mt-2 text-sm text-yellow-700">
               <p>
-                Connect your blockchain wallet to fully utilize supply chain traceability features.
+                As an admin, you need to connect your blockchain wallet to enable supply chain traceability features for all users.
               </p>
             </div>
             <div className="mt-4">
@@ -47,7 +46,7 @@ const Dashboard = () => {
                 onClick={connectToMetaMask}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
               >
-                Connect Wallet
+                Connect Admin Wallet
               </button>
             </div>
           </div>
@@ -77,8 +76,11 @@ const Dashboard = () => {
     );
   }
   
-  // Show wallet reminder if not connected
-  const shouldShowWalletReminder = !currentUser.walletAddress && walletStatus !== 'connecting';
+  // Show wallet reminder ONLY for admin users who don't have a wallet connected
+  const shouldShowWalletReminder = 
+    currentUser.role === 'ADMIN' && 
+    !currentUser.walletAddress && 
+    walletStatus !== 'connecting';
   
   // Render the appropriate dashboard based on user role
   let dashboardComponent;

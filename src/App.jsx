@@ -22,11 +22,14 @@ import DistributorDashboard from './components/dashboard/DistributorDashboard';
 // Import role-specific components
 import MaterialsList from './components/supplier/MaterialsList';
 import MaterialRequestsList from './components/supplier/MaterialRequestsList';
+import MaterialAllocationManagement from './components/supplier/MaterialAllocationManagement';
 import ProductsList from './components/manufacturer/ProductsList';
 import ProductionBatchesList from './components/manufacturer/ProductionBatchesList';
 import TransportsList from './components/distributor/TransportsList';
 import ProductCatalog from './components/customer/ProductCatalog';
 import OrdersList from './components/customer/OrdersList';
+import ManufacturerMaterialRequestsList from './components/manufacturer/MaterialRequestsList';
+import MaterialRequestDetails from './components/manufacturer/MaterialRequestDetails';
 
 const App = () => {
   return (
@@ -55,15 +58,18 @@ const App = () => {
             <Route path="users" element={<UserManagement />} />
             
             {/* Supplier Routes */}
-            <Route path="supplier">
-              <Route path="materials" element={<MaterialsList />} />
-              <Route path="requests" element={<MaterialRequestsList />} />
-            </Route>
+          <Route path="supplier">
+            <Route path="materials" element={<MaterialsList />} />
+            <Route path="requests" element={<MaterialRequestsList />} />
+            <Route path="allocations" element={<MaterialAllocationManagement />} />
+          </Route>
             
             {/* Manufacturer Routes */}
             <Route path="manufacturer">
               <Route path="products" element={<ProductsList />} />
               <Route path="production" element={<ProductionBatchesList />} />
+              <Route path="material-requests" element={<ManufacturerMaterialRequestsList />} />
+              <Route path="material-requests/:requestId" element={<MaterialRequestDetails />} />
             </Route>
             
             {/* Distributor Routes */}

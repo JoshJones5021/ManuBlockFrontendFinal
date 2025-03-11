@@ -37,22 +37,25 @@ const customerService = {
 
 // Supplier Services
 const supplierService = {
-  getMaterials: (supplierId) => {
-    return api.get(`/supplier/materials/${supplierId}`);
-  },
-  createMaterial: (materialData) => {
-    return api.post('/supplier/materials', materialData);
-  },
-  getPendingRequests: (supplierId) => {
-    return api.get(`/supplier/requests/pending/${supplierId}`);
-  },
-  approveRequest: (requestId, approvals) => {
-    return api.post(`/supplier/requests/${requestId}/approve`, approvals);
-  },
-  allocateMaterials: (requestId) => {
-    return api.post(`/supplier/requests/${requestId}/allocate`);
-  }
-};
+    getMaterials: (supplierId) => {
+      return api.get(`/supplier/materials/${supplierId}`);
+    },
+    createMaterial: (materialData) => {
+      return api.post('/supplier/materials', materialData);
+    },
+    getPendingRequests: (supplierId) => {
+      return api.get(`/supplier/requests/pending/${supplierId}`);
+    },
+    getRequestsByStatus: (supplierId, status) => {
+      return api.get(`/supplier/requests/${supplierId}/${status}`);
+    },
+    approveRequest: (requestId, approvals) => {
+      return api.post(`/supplier/requests/${requestId}/approve`, approvals);
+    },
+    allocateMaterials: (requestId) => {
+      return api.post(`/supplier/requests/${requestId}/allocate`);
+    }
+  };
 
 // Manufacturer Services
 const manufacturerService = {

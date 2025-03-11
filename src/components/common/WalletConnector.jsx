@@ -9,6 +9,14 @@ const WalletConnector = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState('');
 
+  // Only show wallet connector for admin users
+  const isAdmin = currentUser?.role === 'ADMIN';
+  
+  // If not admin, don't render the component
+  if (!isAdmin) {
+    return null;
+  }
+
   const handleConnectMetaMask = async () => {
     setError('');
     setIsConnecting(true);

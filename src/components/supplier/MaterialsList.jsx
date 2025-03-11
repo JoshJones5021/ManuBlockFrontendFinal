@@ -1,7 +1,7 @@
 // src/components/supplier/MaterialsList.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supplierService, supplyChainService } from '../../services/api';
+import { supplierService, supplyChainService, adminService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import MaterialCreationForm from './MaterialCreationForm';
 
@@ -20,10 +20,12 @@ const MaterialsList = () => {
     specifications: '',
     unit: ''
   });
+  const [adminUser, setAdminUser] = useState(null);
 
   useEffect(() => {
     fetchMaterials();
     fetchSupplyChains();
+    fetchAdminUser();
   }, [currentUser.id]);
 
   const fetchMaterials = async () => {
@@ -42,11 +44,29 @@ const MaterialsList = () => {
 
   const fetchSupplyChains = async () => {
     try {
+      // Use the proper service method to get supply chains for this user
       const response = await supplyChainService.getSupplyChainsByUser(currentUser.id);
       setSupplyChains(response.data);
     } catch (err) {
       console.error('Error fetching supply chains:', err);
+      // Don't set mock data, just set an empty array
       setSupplyChains([]);
+    }
+  };
+
+  const fetchAdminUser = async () => {
+    try {
+      // Only fetch admin user if the current user is not an admin
+      if (currentUser.role !== 'ADMIN') {
+        const response = await adminService.getAllUsers();
+        const admins = response.data.filter(user => user.role === 'ADMIN' && user.walletAddress);
+        if (admins.length > 0) {
+          setAdminUser(admins[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching admin user:', err);
+      // No need to set an error, as we'll fall back to the current user
     }
   };
 
@@ -119,6 +139,11 @@ const MaterialsList = () => {
     }
   };
 
+  // Determine if blockchain tracking is enabled
+  const isBlockchainEnabled = currentUser.role === 'ADMIN' || 
+                            (adminUser && adminUser.walletAddress) || 
+                            currentUser.walletAddress;
+
   if (loading && materials.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -144,6 +169,25 @@ const MaterialsList = () => {
           {error}
         </div>
       )}
+
+      {/* Blockchain Status Info */}
+      <div className={`mb-6 p-4 rounded ${isBlockchainEnabled ? 'bg-blue-50 border border-blue-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+        <div className="flex items-start">
+          <div className={`mr-3 flex-shrink-0 h-5 w-5 rounded-full ${isBlockchainEnabled ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+          <div>
+            <h3 className={`text-sm font-medium ${isBlockchainEnabled ? 'text-blue-800' : 'text-yellow-800'}`}>
+              Blockchain Tracking Status
+            </h3>
+            <p className="mt-1 text-sm">
+              {isBlockchainEnabled ? (
+                <>Materials will be tracked on the blockchain using admin wallet.</>
+              ) : (
+                <>Blockchain tracking is currently unavailable. Please contact an admin to connect their wallet.</>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Material Creation Form */}
       {showCreateForm && (
@@ -204,11 +248,11 @@ const MaterialsList = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {material.blockchainItemId ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Tracked
+                          Tracked (Admin Wallet)
                         </span>
                       ) : (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                          Pending
+                          {isBlockchainEnabled ? 'Pending' : 'Unavailable'}
                         </span>
                       )}
                     </td>
@@ -342,6 +386,6 @@ const MaterialsList = () => {
       )}
     </div>
   );
-};
+}
 
 export default MaterialsList;

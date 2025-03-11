@@ -27,6 +27,18 @@ const Navbar = () => {
     return role.charAt(0) + role.slice(1).toLowerCase();
   };
 
+  // Show wallet indicator badge for non-admin users
+  const BlockchainIndicator = () => {
+    // Only show for non-admin users
+    if (currentUser.role === 'ADMIN' || !currentUser) return null;
+
+    return (
+      <div className="mr-4 bg-blue-50 text-blue-700 text-xs font-semibold py-1 px-2 rounded-md border border-blue-200">
+        Using Admin Wallet for Blockchain
+      </div>
+    );
+  };
+
   return (
     <nav className="bg-gray-800 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,10 +100,11 @@ const Navbar = () => {
           {/* User Menu */}
           {currentUser && (
             <div className="hidden md:flex items-center">
-              {/* Wallet Connector Component */}
-              <div className="mr-4">
-                <WalletConnector />
-              </div>
+              {/* BlockchainIndicator for non-admins */}
+              <BlockchainIndicator />
+
+              {/* Wallet Connector - only shown for admins now */}
+              <WalletConnector />
 
               <div className="relative">
                 <button onClick={toggleDropdown} className="flex items-center">
@@ -165,9 +178,12 @@ const Navbar = () => {
               </div>
             </div>
             <div className="mt-3 px-2 space-y-1">
-              <div className="mb-2">
-                <WalletConnector />
-              </div>
+              {/* Show WalletConnector only for admin in mobile menu */}
+              {currentUser.role === 'ADMIN' && (
+                <div className="mb-2">
+                  <WalletConnector />
+                </div>
+              )}
               <Link 
                 to="/profile" 
                 className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-700"
