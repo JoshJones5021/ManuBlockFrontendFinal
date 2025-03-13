@@ -79,6 +79,7 @@ const manufacturerService = {
     return api.delete(`/manufacturer/products/${productId}`);
   },
   requestMaterials: (requestData) => {
+    // Ensure all IDs are numbers, not strings
     const sanitizedData = {
       ...requestData,
       manufacturerId: Number(requestData.manufacturerId),

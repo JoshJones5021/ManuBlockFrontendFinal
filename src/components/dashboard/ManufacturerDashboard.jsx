@@ -1,7 +1,7 @@
 // src/components/dashboard/ManufacturerDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { manufacturerService } from '../../services/api';
+import { manufacturerService, supplierService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const ManufacturerDashboard = () => {
@@ -10,6 +10,7 @@ const ManufacturerDashboard = () => {
   const [productionBatches, setProductionBatches] = useState([]);
   const [orders, setOrders] = useState([]);
   const [materialRequests, setMaterialRequests] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [stats, setStats] = useState({
     totalProducts: 0,
     activeBatches: 0,
@@ -45,12 +46,14 @@ const ManufacturerDashboard = () => {
         const batchesData = await safelyFetchData(manufacturerService.getProductionBatches(currentUser.id));
         const ordersData = await safelyFetchData(manufacturerService.getOrders(currentUser.id));
         const requestsData = await safelyFetchData(manufacturerService.getMaterialRequests(currentUser.id));
+        const suppliersData = await safelyFetchData(supplierService.getAllSuppliers());
         
         // Set state with fetched data
         setProducts(productsData);
         setProductionBatches(batchesData);
         setOrders(ordersData);
         setMaterialRequests(requestsData);
+        setSuppliers(suppliersData);
         
         // Calculate stats safely
         const activeBatches = batchesData.filter(
@@ -93,6 +96,35 @@ const ManufacturerDashboard = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'Planned':
         return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'Requested':
+        return 'bg-blue-100 text-blue-800';
+      case 'Approved':
+        return 'bg-purple-100 text-purple-800';
+      case 'Allocated':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Ready for Pickup':
+        return 'bg-orange-100 text-orange-800';
+      case 'In Transit':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'Delivered':
+        return 'bg-green-100 text-green-800';
+      case 'Completed':
+        return 'bg-green-100 text-green-800';
+      case 'In Production':
+        return 'bg-blue-100 text-blue-800';
+      case 'In QC':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Planned':
+        return 'bg-purple-100 text-purple-800';
+      case 'Rejected':
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -314,73 +346,81 @@ const ManufacturerDashboard = () => {
         )}
       </div>
       
-      {/* Material Requests */}
-      <div className="bg-white rounded-lg shadow p-6">
+        {/* Material Requests */}
+        <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Material Requests</h2>
-          <Link to="/manufacturer/material-requests" className="text-blue-500 hover:underline">View All Requests</Link>
+            <h2 className="text-xl font-semibold">Material Requests</h2>
+            <Link to="/manufacturer/material-requests" className="text-blue-500 hover:underline">View All Requests</Link>
         </div>
         
         {materialRequests.length === 0 ? (
-          <div className="text-center py-8">
+            <div className="text-center py-8">
             <p className="text-gray-500">You haven't made any material requests yet.</p>
             <Link to="/manufacturer/material-requests/create" className="text-blue-500 hover:underline mt-2 inline-block">
-              Request Materials
+                Request Materials
             </Link>
-          </div>
+            </div>
         ) : (
-          <div className="overflow-x-auto">
+            <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+                <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Request #
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Action
-                  </th>
+                    </th>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
                 {materialRequests.slice(0, Math.min(5, materialRequests.length)).map((request) => (
-                  <tr key={request.id || Math.random().toString(36).substr(2, 9)}>
+                    <tr key={request.id || Math.random().toString(36).substr(2, 9)}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{safelyGetNestedProp(request, 'requestNumber', 'N/A')}</div>
+                        <div className="text-sm font-medium text-gray-900">{safelyGetNestedProp(request, 'requestNumber', 'N/A')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{safelyGetNestedProp(request, 'supplier.username', 'Unknown Supplier')}</div>
+                        {/* Display supplier name - added this part */}
+                        <div className="text-sm text-gray-900">
+                        {
+                            // Get supplier from suppliers list using supplier ID
+                            suppliers.find(s => s.id === request.supplierId)?.username || 
+                            // Fallback to supplier.username if supplier object is nested in the request
+                            safelyGetNestedProp(request, 'supplier.username', 'Unknown Supplier')
+                        }
+                        </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500">
                         {formatDate(safelyGetNestedProp(request, 'createdAt'))}
-                      </div>
+                        </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(request.status || 'Unknown')}`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status || 'Unknown')}`}>
                         {request.status || 'Unknown'}
-                      </span>
+                        </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link to={`/manufacturer/material-requests/${request.id}`} className="text-indigo-600 hover:text-indigo-900">
+                        <Link to={`/manufacturer/material-requests/${request.id}`} className="text-indigo-600 hover:text-indigo-900">
                         View
-                      </Link>
+                        </Link>
                     </td>
-                  </tr>
+                    </tr>
                 ))}
-              </tbody>
+                </tbody>
             </table>
-          </div>
+            </div>
         )}
-      </div>
+        </div>
     </div>
   );
 };

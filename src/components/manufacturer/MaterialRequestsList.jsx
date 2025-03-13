@@ -319,7 +319,7 @@ const handleCreateSubmit = async (e) => {
       return;
     }
     
-    // Ensure all IDs are numbers and add default required fields
+    // Format the request data according to what the backend expects
     const requestData = {
       manufacturerId: parseInt(currentUser.id),
       supplierId: parseInt(formData.supplierId),
@@ -327,14 +327,14 @@ const handleCreateSubmit = async (e) => {
       orderId: formData.orderId ? parseInt(formData.orderId) : null,
       items: formData.items.map(item => ({
         materialId: parseInt(item.materialId),
-        quantity: parseInt(item.quantity),
-        status: "Requested" // Add status to each item
+        quantity: parseInt(item.quantity)
       })),
       requestedDeliveryDate: formData.requestedDeliveryDate ? new Date(formData.requestedDeliveryDate).getTime() : null,
       notes: formData.notes,
-      status: "Requested" // Add status field - this is required
+      status: "Requested" 
     };
     
+    // Log the data to verify it's formatted correctly
     console.log('Sending request data:', requestData);
     
     await manufacturerService.requestMaterials(requestData);
@@ -349,9 +349,7 @@ const handleCreateSubmit = async (e) => {
     }, 3000);
   } catch (err) {
     console.error('Error creating material request:', err);
-    // Try to get a more detailed error message
-    const errorMsg = err.response?.data || err.message || 'Failed to create material request. Please try again.';
-    setError(errorMsg);
+    setError('Failed to create material request. Please try again.');
   }
 };
   
