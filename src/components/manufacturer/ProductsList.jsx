@@ -1,7 +1,6 @@
-// src/components/manufacturer/ProductsList.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { manufacturerService, supplierService } from '../../services/api';
+import { manufacturerService, supplierService, supplyChainService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const ProductsList = () => {
@@ -19,21 +18,61 @@ const ProductsList = () => {
     specifications: '',
     sku: '',
     price: '',
+    supplyChainId: '',
     requiredMaterialIds: []
   });
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [supplyChains, setSupplyChains] = useState([]);
+  const [filteredMaterials, setFilteredMaterials] = useState([]);
 
   useEffect(() => {
-    fetchProducts();
-    fetchAvailableMaterials();
+    fetchData();
   }, [currentUser.id]);
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await manufacturerService.getProducts(currentUser.id);
-      setProducts(response.data);
+      
+      // Fetch all required data in parallel
+      const [
+        productsResponse, 
+        materialsResponse, 
+        supplyChainResponse
+      ] = await Promise.all([
+        manufacturerService.getProducts(currentUser.id),
+        supplierService.getMaterials(),
+        supplyChainService.getSupplyChainsByUser(currentUser.id)
+      ]);
+      
+      // Add defensive coding
+      const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : [];
+      const materialsData = Array.isArray(materialsResponse.data) ? materialsResponse.data : [];
+      const supplyChainData = Array.isArray(supplyChainResponse) ? supplyChainResponse : [];
+      
+      // Filter only finalized supply chains
+      const finalizedChains = supplyChainData.filter(chain => 
+        chain.blockchainStatus === "FINALIZED" || chain.blockchainStatus === "CONFIRMED"
+      );
+      
+      setProducts(productsData);
+      setAvailableMaterials(materialsData);
+      setSupplyChains(finalizedChains);
+      
+      // Initialize supply chain selection if possible
+      if (finalizedChains.length > 0) {
+        // Update form with first available supply chain
+        setFormData(prev => ({
+          ...prev,
+          supplyChainId: finalizedChains[0].id
+        }));
+        
+        // Filter materials based on first supply chain
+        filterMaterialsByChain(materialsData, finalizedChains[0].id);
+      } else {
+        setFilteredMaterials([]);
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -42,41 +81,77 @@ const ProductsList = () => {
       setLoading(false);
     }
   };
-
-  const fetchAvailableMaterials = async () => {
-    try {
-      const response = await supplierService.getMaterials();
-      // Filter to only get active materials
-      const activeMaterials = response.data.filter(material => material.active);
-      setAvailableMaterials(activeMaterials);
-    } catch (err) {
-      console.error('Error fetching available materials:', err);
-      // Don't set error - this is not critical
+  
+  const filterMaterialsByChain = (allMaterials, chainId) => {
+    // Find the selected chain
+    const selectedChain = supplyChains.find(chain => chain.id === parseInt(chainId));
+    
+    if (!selectedChain) {
+      setFilteredMaterials([]);
+      return;
     }
+    
+    // Extract supplier nodes from the chain
+    const supplierNodes = selectedChain.nodes.filter(
+      node => node.role && node.role.toLowerCase() === 'supplier' && node.assignedUserId
+    );
+    
+    // Get the assigned user IDs from supplier nodes
+    const supplierUserIds = supplierNodes.map(node => node.assignedUserId);
+    
+    // Filter materials from suppliers in this chain
+    const chainMaterials = allMaterials.filter(
+      material => material.active && supplierUserIds.includes(material.supplier.id)
+    );
+    
+    setFilteredMaterials(chainMaterials);
   };
 
   const handleCreateProduct = () => {
+    // Reset form with default supply chain if available
+    const initialSupplyChainId = supplyChains.length > 0 ? supplyChains[0].id : '';
+    
     setFormData({
       name: '',
       description: '',
       specifications: '',
       sku: '',
       price: '',
+      supplyChainId: initialSupplyChainId,
       requiredMaterialIds: []
     });
+    
+    // Initial filter of materials
+    if (initialSupplyChainId) {
+      filterMaterialsByChain(availableMaterials, initialSupplyChainId);
+    }
+    
     setShowCreateModal(true);
   };
 
   const handleEditProduct = (product) => {
     setSelectedProduct(product);
+    
+    // Determine which supply chain this product belongs to
+    // In a real application, you would have this information in the product object
+    // Here we'll just use the first available chain
+    const initialSupplyChainId = supplyChains.length > 0 ? supplyChains[0].id : '';
+    
     setFormData({
       name: product.name,
       description: product.description,
       specifications: product.specifications,
       sku: product.sku,
       price: product.price.toString(),
-      requiredMaterialIds: product.requiredMaterials.map(material => material.id)
+      supplyChainId: initialSupplyChainId,
+      requiredMaterialIds: product.requiredMaterials ? product.requiredMaterials.map(material => material.id) : []
     });
+    
+    // Filter materials for the selected chain
+    if (initialSupplyChainId) {
+      filterMaterialsByChain(availableMaterials, initialSupplyChainId);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -86,6 +161,11 @@ const ProductsList = () => {
       ...formData,
       [name]: value
     });
+    
+    // If supply chain changes, filter materials
+    if (name === 'supplyChainId' && value) {
+      filterMaterialsByChain(availableMaterials, value);
+    }
   };
 
   const handleMaterialChange = (e) => {
@@ -110,6 +190,17 @@ const ProductsList = () => {
     e.preventDefault();
     
     try {
+      // Validate inputs
+      if (!formData.name || !formData.description || !formData.sku || !formData.price) {
+        setError('Please fill in all required fields.');
+        return;
+      }
+      
+      if (!formData.supplyChainId) {
+        setError('Please select a supply chain.');
+        return;
+      }
+      
       const productData = {
         name: formData.name,
         description: formData.description,
@@ -117,9 +208,7 @@ const ProductsList = () => {
         sku: formData.sku,
         price: parseFloat(formData.price),
         manufacturerId: currentUser.id,
-        // For now, use the first supply chain the user has access to
-        // In a real app, you would let them select a supply chain
-        supplyChainId: 1, // Replace with actual selection
+        supplyChainId: parseInt(formData.supplyChainId),
         requiredMaterialIds: formData.requiredMaterialIds
       };
       
@@ -127,7 +216,7 @@ const ProductsList = () => {
       setShowCreateModal(false);
       setSuccessMessage('Product created successfully!');
       setShowSuccessAlert(true);
-      fetchProducts(); // Refresh the product list
+      fetchData(); // Refresh the product list
       
       // Hide success message after 3 seconds
       setTimeout(() => {
@@ -143,6 +232,12 @@ const ProductsList = () => {
     e.preventDefault();
     
     try {
+      // Validate inputs
+      if (!formData.name || !formData.description || !formData.sku || !formData.price) {
+        setError('Please fill in all required fields.');
+        return;
+      }
+      
       const productData = {
         name: formData.name,
         description: formData.description,
@@ -156,7 +251,7 @@ const ProductsList = () => {
       setShowEditModal(false);
       setSuccessMessage('Product updated successfully!');
       setShowSuccessAlert(true);
-      fetchProducts(); // Refresh the product list
+      fetchData(); // Refresh the product list
       
       // Hide success message after 3 seconds
       setTimeout(() => {
@@ -174,7 +269,7 @@ const ProductsList = () => {
         await manufacturerService.deactivateProduct(productId);
         setSuccessMessage('Product deactivated successfully!');
         setShowSuccessAlert(true);
-        fetchProducts(); // Refresh the product list
+        fetchData(); // Refresh the product list
         
         // Hide success message after 3 seconds
         setTimeout(() => {
@@ -190,7 +285,7 @@ const ProductsList = () => {
   // Create Modal Component
   const CreateProductModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full">
+      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Create New Product</h2>
           <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -202,8 +297,34 @@ const ProductsList = () => {
         
         <form onSubmit={handleCreateSubmit}>
           <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
+              Supply Chain <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="supplyChainId"
+              name="supplyChainId"
+              value={formData.supplyChainId}
+              onChange={handleInputChange}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              required
+            >
+              <option value="">Select a supply chain</option>
+              {supplyChains.map((chain) => (
+                <option key={chain.id} value={chain.id}>
+                  {chain.name} ({chain.blockchainStatus})
+                </option>
+              ))}
+            </select>
+            {supplyChains.length === 0 && (
+              <p className="text-red-500 text-xs italic mt-1">
+                No finalized supply chains available. Please contact an administrator.
+              </p>
+            )}
+          </div>
+          
+          <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
-              Product Name
+              Product Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -218,7 +339,7 @@ const ProductsList = () => {
           
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
-              Description
+              Description <span className="text-red-500">*</span>
             </label>
             <textarea
               id="description"
@@ -248,7 +369,7 @@ const ProductsList = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="sku">
-                SKU
+                SKU <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -263,7 +384,7 @@ const ProductsList = () => {
             
             <div>
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="price">
-                Price
+                Price <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -283,9 +404,9 @@ const ProductsList = () => {
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Required Materials
             </label>
-            {availableMaterials.length > 0 ? (
+            {filteredMaterials.length > 0 ? (
               <div className="max-h-60 overflow-y-auto p-2 border rounded">
-                {availableMaterials.map((material) => (
+                {filteredMaterials.map((material) => (
                   <div key={material.id} className="flex items-center mb-2">
                     <input
                       type="checkbox"
@@ -296,13 +417,17 @@ const ProductsList = () => {
                       className="mr-2"
                     />
                     <label htmlFor={`material-${material.id}`} className="text-sm">
-                      {material.name} ({material.unit})
+                      {material.name} ({material.unit}) - {material.supplier.username}
                     </label>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">No materials available. Please add materials first.</p>
+              <p className="text-gray-500 text-sm">
+                {supplyChains.length > 0
+                  ? "No materials available in this supply chain. Suppliers need to add materials first."
+                  : "No supply chains available. Please join a supply chain first."}
+              </p>
             )}
           </div>
           
@@ -317,6 +442,7 @@ const ProductsList = () => {
             <button
               type="submit"
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              disabled={!formData.supplyChainId}
             >
               Create Product
             </button>
@@ -329,7 +455,7 @@ const ProductsList = () => {
   // Edit Modal Component
   const EditProductModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full">
+      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Edit Product</h2>
           <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -342,7 +468,7 @@ const ProductsList = () => {
         <form onSubmit={handleEditSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-name">
-              Product Name
+              Product Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -357,7 +483,7 @@ const ProductsList = () => {
           
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-description">
-              Description
+              Description <span className="text-red-500">*</span>
             </label>
             <textarea
               id="edit-description"
@@ -387,7 +513,7 @@ const ProductsList = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-sku">
-                SKU
+                SKU <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -402,7 +528,7 @@ const ProductsList = () => {
             
             <div>
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-price">
-                Price
+                Price <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -422,9 +548,9 @@ const ProductsList = () => {
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Required Materials
             </label>
-            {availableMaterials.length > 0 ? (
+            {filteredMaterials.length > 0 ? (
               <div className="max-h-60 overflow-y-auto p-2 border rounded">
-                {availableMaterials.map((material) => (
+                {filteredMaterials.map((material) => (
                   <div key={material.id} className="flex items-center mb-2">
                     <input
                       type="checkbox"
@@ -435,7 +561,7 @@ const ProductsList = () => {
                       className="mr-2"
                     />
                     <label htmlFor={`edit-material-${material.id}`} className="text-sm">
-                      {material.name} ({material.unit})
+                      {material.name} ({material.unit}) - {material.supplier.username}
                     </label>
                   </div>
                 ))}
@@ -472,6 +598,7 @@ const ProductsList = () => {
         <button
           onClick={handleCreateProduct}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+          disabled={supplyChains.length === 0}
         >
           <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
@@ -479,6 +606,14 @@ const ProductsList = () => {
           Create New Product
         </button>
       </div>
+
+      {/* Supply Chain Warning */}
+      {supplyChains.length === 0 && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4">
+          <strong className="font-bold">Notice:</strong>
+          <span className="block sm:inline"> You need to be part of a finalized supply chain to create products. Please contact an administrator.</span>
+        </div>
+      )}
 
       {/* Success Alert */}
       {showSuccessAlert && (
@@ -507,9 +642,15 @@ const ProductsList = () => {
           <button
             onClick={handleCreateProduct}
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            disabled={supplyChains.length === 0}
           >
             Create Product
           </button>
+          {supplyChains.length === 0 && (
+            <p className="text-gray-500 mt-4 text-sm italic">
+              You need to be part of a finalized supply chain to create products.
+            </p>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">

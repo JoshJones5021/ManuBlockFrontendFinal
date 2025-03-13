@@ -72,11 +72,33 @@ const manufacturerService = {
   createProduct: (productData) => {
     return api.post('/manufacturer/products', productData);
   },
+  updateProduct: (productId, productData) => {
+    return api.put(`/manufacturer/products/${productId}`, productData);
+  },
+  deactivateProduct: (productId) => {
+    return api.delete(`/manufacturer/products/${productId}`);
+  },
   requestMaterials: (requestData) => {
-    return api.post('/manufacturer/materials/request', requestData);
+    const sanitizedData = {
+      ...requestData,
+      manufacturerId: Number(requestData.manufacturerId),
+      supplierId: Number(requestData.supplierId),
+      supplyChainId: Number(requestData.supplyChainId),
+      orderId: requestData.orderId ? Number(requestData.orderId) : null,
+      items: requestData.items.map(item => ({
+        materialId: Number(item.materialId),
+        quantity: Number(item.quantity)
+      }))
+    };
+    
+    console.log('Sending sanitized request data:', sanitizedData);
+    return api.post('/manufacturer/materials/request', sanitizedData);
   },
   getMaterialRequests: (manufacturerId) => {
     return api.get(`/manufacturer/materials/requests/${manufacturerId}`);
+  },
+  getMaterialRequestById: (requestId) => {
+    return api.get(`/manufacturer/materials/request/${requestId}`);
   },
   getProductionBatches: (manufacturerId) => {
     return api.get(`/manufacturer/production/batches/${manufacturerId}`);
@@ -86,6 +108,9 @@ const manufacturerService = {
   },
   completeProductionBatch: (batchId, quality) => {
     return api.post(`/manufacturer/production/batch/${batchId}/complete`, { quality });
+  },
+  rejectProductionBatch: (batchId, reason) => {
+    return api.post(`/manufacturer/production/batch/${batchId}/reject`, { reason });
   },
   getOrders: (manufacturerId) => {
     return api.get(`/manufacturer/orders/${manufacturerId}`);
@@ -117,13 +142,21 @@ const distributorService = {
   }
 };
 
-// Supply Chain Services - Properly implemented now
+// Supply Chain Services
 const supplyChainService = {
   getSupplyChains: () => {
     return api.get('/supply-chains');
   },
   getSupplyChainsByUser: (userId) => {
-    return api.get(`/supply-chains/user/${userId}`);
+    return api.get(`/supply-chains/user/${userId}`)
+      .then(response => {
+        console.log('Supply chain response:', response);
+        return response.data || [];
+      })
+      .catch(error => {
+        console.error('Error fetching supply chains:', error);
+        return [];
+      });
   },
   createSupplyChain: (data) => {
     return api.post('/supply-chains/create', data);
@@ -136,6 +169,12 @@ const supplyChainService = {
   },
   deleteSupplyChain: (id) => {
     return api.delete(`/supply-chains/${id}`);
+  },
+  isSupplyChainFinalized: (id) => {
+    return api.get(`/supply-chains/${id}/is-finalized`);
+  },
+  getAssignedUsers: (id) => {
+    return api.get(`/supply-chains/${id}/assigned-users`);
   }
 };
 
@@ -150,6 +189,9 @@ const blockchainService = {
   },
   getBlockchainItemDetails: (itemId) => {
     return api.get(`/tracing/blockchain/item/${itemId}`);
+  },
+  getBlockchainTransactionDetails: (txHash) => {
+    return api.get(`/tracing/blockchain/transaction/${txHash}`);
   },
   traceItemHistory: (itemId) => {
     return api.get(`/tracing/item/${itemId}/trace`);

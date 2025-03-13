@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { manufacturerService, supplierService } from '../../services/api';
+import { manufacturerService, supplierService, supplyChainService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const MaterialRequestsList = () => {
@@ -16,8 +16,8 @@ const MaterialRequestsList = () => {
     items: [],
     requestedDeliveryDate: '',
     notes: '',
-    supplyChainId: 1, // Default value, should be selected in production
-    orderId: null // Optional, for request linked to specific order
+    supplyChainId: '',
+    orderId: null
   });
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -27,6 +27,7 @@ const MaterialRequestsList = () => {
   });
   const [activeOrders, setActiveOrders] = useState([]);
   const [supplyChains, setSupplyChains] = useState([]);
+  const [filteredSuppliers, setFilteredSuppliers] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -37,39 +38,60 @@ const MaterialRequestsList = () => {
       setLoading(true);
       
       // Fetch all required data in parallel
-      const [requestsResponse, suppliersResponse, ordersResponse] = await Promise.all([
-        manufacturerService.getMaterialRequests(currentUser.id),
-        // Use the new getAllSuppliers method
-        supplierService.getAllSuppliers(),
-        manufacturerService.getOrders(currentUser.id)
-      ]);
+      let requestsResponse, supplierResponse, ordersResponse, supplyChains;
+      
+      try {
+        [requestsResponse, supplierResponse, ordersResponse] = await Promise.all([
+          manufacturerService.getMaterialRequests(currentUser.id),
+          supplierService.getAllSuppliers(),
+          manufacturerService.getOrders(currentUser.id)
+        ]);
+        
+        // Fetch supply chains separately to handle errors
+        supplyChains = await supplyChainService.getSupplyChainsByUser(currentUser.id);
+        console.log('Supply chains fetched:', supplyChains);
+      } catch (err) {
+        console.error('Error in data fetching:', err);
+        supplyChains = [];
+      }
       
       // Add defensive coding for safety
-      const requestsData = Array.isArray(requestsResponse.data) ? requestsResponse.data : [];
-      const suppliersData = Array.isArray(suppliersResponse.data) ? suppliersResponse.data : [];
-      const ordersData = Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
+      const requestsData = Array.isArray(requestsResponse?.data) ? requestsResponse.data : [];
+      const suppliersData = Array.isArray(supplierResponse?.data) ? supplierResponse.data : [];
+      const ordersData = Array.isArray(ordersResponse?.data) ? ordersResponse.data : [];
+      
+      // Filter only finalized supply chains
+      const finalizedChains = Array.isArray(supplyChains) ? supplyChains.filter(chain => 
+        chain.blockchainStatus === "FINALIZED" || 
+        chain.blockchainStatus === "CONFIRMED"
+      ) : [];
+      
+      console.log('Filtered finalized chains:', finalizedChains);
       
       setMaterialRequests(requestsData);
       setSuppliers(suppliersData);
+      setSupplyChains(finalizedChains);
       
-      // Filter orders that are in production or requested status
+      // Initialize supply chain selection if possible
+      if (finalizedChains.length > 0) {
+        // Update form with first available supply chain
+        setFormData(prev => ({
+          ...prev,
+          supplyChainId: finalizedChains[0].id
+        }));
+        
+        // Filter suppliers based on first supply chain
+        filterSuppliersByChain(suppliersData, finalizedChains[0].id);
+      } else {
+        setFilteredSuppliers([]);
+      }
+      
+      // Filter orders
       const activeOrdersData = ordersData.filter(
         order => order && order.status && 
         (order.status === 'Requested' || order.status === 'In Production')
       );
       setActiveOrders(activeOrdersData);
-      
-      // If we have suppliers, fetch materials for the first one
-      if (suppliersData.length > 0) {
-        // Set the default supplier in the form
-        setFormData(prev => ({
-          ...prev,
-          supplierId: suppliersData[0].id
-        }));
-        
-        // Fetch materials for this supplier
-        fetchSupplierMaterials(suppliersData[0].id);
-      }
       
       setError(null);
     } catch (err) {
@@ -80,24 +102,82 @@ const MaterialRequestsList = () => {
     }
   };
   
+  const filterSuppliersByChain = (allSuppliers, chainId) => {
+    // Find the selected chain
+    const selectedChain = supplyChains.find(chain => chain.id === parseInt(chainId));
+    
+    if (!selectedChain) {
+      setFilteredSuppliers([]);
+      return;
+    }
+    
+    // Extract supplier nodes from the chain
+    const supplierNodes = selectedChain.nodes.filter(
+      node => node.role && node.role.toLowerCase() === 'supplier' && node.assignedUserId
+    );
+    
+    // Get the assigned user IDs from supplier nodes
+    const supplierUserIds = supplierNodes.map(node => node.assignedUserId);
+    
+    // Filter suppliers that are assigned to this chain
+    const chainSuppliers = allSuppliers.filter(
+      supplier => supplierUserIds.includes(supplier.id)
+    );
+    
+    setFilteredSuppliers(chainSuppliers);
+    
+    // Update supplierId in formData if current selection is invalid
+    if (chainSuppliers.length > 0) {
+      // If current supplierId is not in filtered list, select the first valid supplier
+      const currentIsValid = chainSuppliers.some(s => s.id === parseInt(formData.supplierId));
+      
+      if (!currentIsValid) {
+        setFormData(prev => ({
+          ...prev,
+          supplierId: chainSuppliers[0].id
+        }));
+        
+        // Fetch materials for this supplier
+        fetchSupplierMaterials(chainSuppliers[0].id);
+      }
+    } else {
+      // Clear supplier selection if none available
+      setFormData(prev => ({
+        ...prev,
+        supplierId: ''
+      }));
+      setMaterials([]);
+    }
+  };
+  
   const handleCreateRequest = () => {
+    // Reset form with default supply chain if available
+    const initialSupplyChainId = supplyChains.length > 0 ? supplyChains[0].id : '';
+    
     setFormData({
-      supplierId: suppliers.length > 0 ? suppliers[0].id : '',
+      supplierId: filteredSuppliers.length > 0 ? filteredSuppliers[0].id : '',
       items: [],
       requestedDeliveryDate: '',
       notes: '',
-      supplyChainId: supplyChains.length > 0 ? supplyChains[0].id : 1, // Use first supply chain as default
+      supplyChainId: initialSupplyChainId,
       orderId: null
     });
+    
     setTempMaterial({
       materialId: '',
       quantity: ''
     });
+    
     setShowCreateModal(true);
     
+    // Initial filter of suppliers
+    if (initialSupplyChainId) {
+      filterSuppliersByChain(suppliers, initialSupplyChainId);
+    }
+    
     // If a supplier is selected, load their materials
-    if (suppliers.length > 0) {
-      fetchSupplierMaterials(suppliers[0].id);
+    if (filteredSuppliers.length > 0) {
+      fetchSupplierMaterials(filteredSuppliers[0].id);
     }
   };
   
@@ -140,6 +220,11 @@ const MaterialRequestsList = () => {
       [name]: value
     });
     
+    // If supply chain changes, filter suppliers
+    if (name === 'supplyChainId' && value) {
+      filterSuppliersByChain(suppliers, value);
+    }
+    
     // If supplier changes, fetch their materials
     if (name === 'supplierId' && value) {
       fetchSupplierMaterials(value);
@@ -160,29 +245,33 @@ const MaterialRequestsList = () => {
       return;
     }
     
+    // Parse materialId as integer to ensure it's a number, not a string
+    const materialId = parseInt(tempMaterial.materialId);
+    const quantity = parseInt(tempMaterial.quantity);
+    
     // Check if material is already in the list
     const existingItemIndex = formData.items.findIndex(
-      item => item.materialId === tempMaterial.materialId
+      item => item.materialId === materialId
     );
     
     if (existingItemIndex >= 0) {
       // Update quantity if already in list
       const updatedItems = [...formData.items];
-      updatedItems[existingItemIndex].quantity = parseInt(tempMaterial.quantity);
+      updatedItems[existingItemIndex].quantity = quantity;
       
       setFormData({
         ...formData,
         items: updatedItems
       });
     } else {
-      // Add as new item
+      // Add as new item with parsed integer values
       setFormData({
         ...formData,
         items: [
           ...formData.items,
           {
-            materialId: tempMaterial.materialId,
-            quantity: parseInt(tempMaterial.quantity)
+            materialId: materialId,
+            quantity: quantity
           }
         ]
       });
@@ -208,46 +297,63 @@ const MaterialRequestsList = () => {
     });
   };
   
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      // Validate inputs
-      if (!formData.supplierId) {
-        setError('Please select a supplier.');
-        return;
-      }
-      
-      if (formData.items.length === 0) {
-        setError('Please add at least one material to the request.');
-        return;
-      }
-      
-      const requestData = {
-        manufacturerId: currentUser.id,
-        supplierId: parseInt(formData.supplierId),
-        supplyChainId: formData.supplyChainId,
-        orderId: formData.orderId ? parseInt(formData.orderId) : null,
-        items: formData.items,
-        requestedDeliveryDate: formData.requestedDeliveryDate ? new Date(formData.requestedDeliveryDate).getTime() : null,
-        notes: formData.notes
-      };
-      
-      await manufacturerService.requestMaterials(requestData);
-      setShowCreateModal(false);
-      setSuccessMessage('Material request created successfully!');
-      setShowSuccessAlert(true);
-      fetchData(); // Refresh the data
-      
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessAlert(false);
-      }, 3000);
-    } catch (err) {
-      console.error('Error creating material request:', err);
-      setError('Failed to create material request. Please try again.');
+  // Fix to ensure all IDs are numbers and not strings
+// Update your handleCreateSubmit function in MaterialRequestsList.jsx
+const handleCreateSubmit = async (e) => {
+  e.preventDefault();
+  
+  try {
+    // Validate inputs
+    if (!formData.supplierId) {
+      setError('Please select a supplier.');
+      return;
     }
-  };
+    
+    if (!formData.supplyChainId) {
+      setError('Please select a supply chain.');
+      return;
+    }
+    
+    if (formData.items.length === 0) {
+      setError('Please add at least one material to the request.');
+      return;
+    }
+    
+    // Ensure all IDs are numbers and add default required fields
+    const requestData = {
+      manufacturerId: parseInt(currentUser.id),
+      supplierId: parseInt(formData.supplierId),
+      supplyChainId: parseInt(formData.supplyChainId),
+      orderId: formData.orderId ? parseInt(formData.orderId) : null,
+      items: formData.items.map(item => ({
+        materialId: parseInt(item.materialId),
+        quantity: parseInt(item.quantity),
+        status: "Requested" // Add status to each item
+      })),
+      requestedDeliveryDate: formData.requestedDeliveryDate ? new Date(formData.requestedDeliveryDate).getTime() : null,
+      notes: formData.notes,
+      status: "Requested" // Add status field - this is required
+    };
+    
+    console.log('Sending request data:', requestData);
+    
+    await manufacturerService.requestMaterials(requestData);
+    setShowCreateModal(false);
+    setSuccessMessage('Material request created successfully!');
+    setShowSuccessAlert(true);
+    fetchData(); // Refresh the data
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      setShowSuccessAlert(false);
+    }, 3000);
+  } catch (err) {
+    console.error('Error creating material request:', err);
+    // Try to get a more detailed error message
+    const errorMsg = err.response?.data || err.message || 'Failed to create material request. Please try again.';
+    setError(errorMsg);
+  }
+};
   
   // Function to get status badge styling
   const getStatusBadgeClass = (status) => {
@@ -294,7 +400,7 @@ const MaterialRequestsList = () => {
 
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
-            Supply Chain
+            Supply Chain <span className="text-red-500">*</span>
           </label>
           <select
             id="supplyChainId"
@@ -307,16 +413,21 @@ const MaterialRequestsList = () => {
             <option value="">Select a supply chain</option>
             {supplyChains.map((chain) => (
               <option key={chain.id} value={chain.id}>
-                {chain.name}
+                {chain.name} ({chain.blockchainStatus})
               </option>
             ))}
           </select>
+          {supplyChains.length === 0 && (
+            <p className="text-red-500 text-xs italic mt-1">
+              No finalized supply chains available. Please contact an administrator.
+            </p>
+          )}
         </div>
         
         <form onSubmit={handleCreateSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplierId">
-              Supplier
+              Supplier <span className="text-red-500">*</span>
             </label>
             <select
               id="supplierId"
@@ -325,14 +436,20 @@ const MaterialRequestsList = () => {
               onChange={handleInputChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
+              disabled={filteredSuppliers.length === 0}
             >
               <option value="">Select a supplier</option>
-              {suppliers.map((supplier) => (
+              {filteredSuppliers.map((supplier) => (
                 <option key={supplier.id} value={supplier.id}>
                   {supplier.username}
                 </option>
               ))}
             </select>
+            {filteredSuppliers.length === 0 && (
+              <p className="text-red-500 text-xs italic mt-1">
+                No suppliers available in the selected supply chain.
+              </p>
+            )}
           </div>
           
           <div className="mb-4">
@@ -388,7 +505,7 @@ const MaterialRequestsList = () => {
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <label className="block text-gray-700 text-sm font-bold">
-                Materials
+                Materials <span className="text-red-500">*</span>
               </label>
             </div>
             
@@ -404,6 +521,7 @@ const MaterialRequestsList = () => {
                     value={tempMaterial.materialId}
                     onChange={handleTempMaterialChange}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    disabled={!formData.supplierId || materials.length === 0}
                   >
                     <option value="">Select a material</option>
                     {materials.map((material) => (
@@ -426,6 +544,7 @@ const MaterialRequestsList = () => {
                     onChange={handleTempMaterialChange}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                     min="1"
+                    disabled={!tempMaterial.materialId}
                   />
                 </div>
               </div>
@@ -434,6 +553,7 @@ const MaterialRequestsList = () => {
                 type="button"
                 onClick={addMaterialToRequest}
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
+                disabled={!tempMaterial.materialId || !tempMaterial.quantity}
               >
                 Add Material
               </button>
@@ -482,7 +602,7 @@ const MaterialRequestsList = () => {
             <button
               type="submit"
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              disabled={formData.items.length === 0}
+              disabled={!formData.supplyChainId || !formData.supplierId || formData.items.length === 0}
             >
               Create Request
             </button>
@@ -499,6 +619,7 @@ const MaterialRequestsList = () => {
         <button
           onClick={handleCreateRequest}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+          disabled={supplyChains.length === 0}
         >
           <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
@@ -506,6 +627,14 @@ const MaterialRequestsList = () => {
           Create New Request
         </button>
       </div>
+
+      {/* Supply Chain Warning */}
+      {supplyChains.length === 0 && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4">
+          <strong className="font-bold">Notice:</strong>
+          <span className="block sm:inline"> You need to be part of a finalized supply chain to create material requests. Please contact an administrator.</span>
+        </div>
+      )}
 
       {/* Success Alert */}
       {showSuccessAlert && (
@@ -534,9 +663,15 @@ const MaterialRequestsList = () => {
           <button
             onClick={handleCreateRequest}
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            disabled={supplyChains.length === 0}
           >
             Create Request
           </button>
+          {supplyChains.length === 0 && (
+            <p className="text-gray-500 mt-4 text-sm italic">
+              You need to be part of a finalized supply chain to create requests.
+            </p>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -549,6 +684,9 @@ const MaterialRequestsList = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Supply Chain
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Items
@@ -570,6 +708,8 @@ const MaterialRequestsList = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {materialRequests.map((request) => {
                   const supplier = suppliers.find(s => s.id === request.supplierId);
+                  const supplyChain = supplyChains.find(sc => sc.id === request.supplyChainId);
+                  
                   return (
                     <tr key={request.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -583,6 +723,11 @@ const MaterialRequestsList = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {supplier ? supplier.username : 'Unknown Supplier'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {supplyChain ? supplyChain.name : 'Unknown Chain'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
