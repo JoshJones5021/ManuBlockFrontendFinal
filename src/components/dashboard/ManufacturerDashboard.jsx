@@ -1,3 +1,4 @@
+// src/components/dashboard/ManufacturerDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { manufacturerService } from '../../services/api';
@@ -22,33 +23,44 @@ const ManufacturerDashboard = () => {
       try {
         setLoading(true);
         
-        // Fetch manufacturer products
-        const productsResponse = await manufacturerService.getProducts(currentUser.id);
-        const productsData = productsResponse.data;
+        // Helper function to safely fetch and process API data
+        const safelyFetchData = async (apiCall, defaultValue = []) => {
+          try {
+            const response = await apiCall;
+            
+            // Check if response exists and has data property
+            if (response && response.data) {
+              // Convert non-array data to array if needed
+              return Array.isArray(response.data) ? response.data : [response.data];
+            }
+            return defaultValue;
+          } catch (err) {
+            console.warn('Error fetching data:', err);
+            return defaultValue;
+          }
+        };
+        
+        // Safely fetch all required data
+        const productsData = await safelyFetchData(manufacturerService.getProducts(currentUser.id));
+        const batchesData = await safelyFetchData(manufacturerService.getProductionBatches(currentUser.id));
+        const ordersData = await safelyFetchData(manufacturerService.getOrders(currentUser.id));
+        const requestsData = await safelyFetchData(manufacturerService.getMaterialRequests(currentUser.id));
+        
+        // Set state with fetched data
         setProducts(productsData);
-        
-        // Fetch production batches
-        const batchesResponse = await manufacturerService.getProductionBatches(currentUser.id);
-        const batchesData = batchesResponse.data;
         setProductionBatches(batchesData);
-        
-        // Fetch orders
-        const ordersResponse = await manufacturerService.getOrders(currentUser.id);
-        const ordersData = ordersResponse.data;
         setOrders(ordersData);
-        
-        // Fetch material requests
-        const requestsResponse = await manufacturerService.getMaterialRequests(currentUser.id);
-        const requestsData = requestsResponse.data;
         setMaterialRequests(requestsData);
         
-        // Calculate stats
+        // Calculate stats safely
         const activeBatches = batchesData.filter(
-          batch => batch.status === 'Planned' || batch.status === 'In Production' || batch.status === 'In QC'
+          batch => batch && batch.status && 
+          (batch.status === 'Planned' || batch.status === 'In Production' || batch.status === 'In QC')
         ).length;
         
         const pendingOrders = ordersData.filter(
-          order => order.status === 'Requested' || order.status === 'In Production'
+          order => order && order.status && 
+          (order.status === 'Requested' || order.status === 'In Production')
         ).length;
         
         setStats({
@@ -66,7 +78,7 @@ const ManufacturerDashboard = () => {
     };
     
     fetchDashboardData();
-  }, [currentUser.id]);
+  }, [currentUser?.id]);
 
   // Function to get appropriate status color
   const getStatusColor = (status) => {
@@ -83,6 +95,25 @@ const ManufacturerDashboard = () => {
         return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Helper function to safely access nested properties
+  const safelyGetNestedProp = (obj, path, defaultValue = '') => {
+    try {
+      const value = path.split('.').reduce((o, p) => (o && o[p] !== undefined) ? o[p] : null, obj);
+      return value !== null ? value : defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      return '';
     }
   };
 
@@ -189,20 +220,20 @@ const ManufacturerDashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {productionBatches.slice(0, 5).map((batch) => (
-                  <tr key={batch.id}>
+                {productionBatches.slice(0, Math.min(5, productionBatches.length)).map((batch) => (
+                  <tr key={batch.id || Math.random().toString(36).substr(2, 9)}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{batch.batchNumber}</div>
+                      <div className="text-sm font-medium text-gray-900">{safelyGetNestedProp(batch, 'batchNumber', 'N/A')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{batch.product.name}</div>
+                      <div className="text-sm text-gray-900">{safelyGetNestedProp(batch, 'product.name', 'Unknown Product')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{batch.quantity}</div>
+                      <div className="text-sm text-gray-900">{safelyGetNestedProp(batch, 'quantity', 0)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(batch.status)}`}>
-                        {batch.status}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(batch.status || 'Unknown')}`}>
+                        {batch.status || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -252,22 +283,22 @@ const ManufacturerDashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {orders.slice(0, 5).map((order) => (
-                  <tr key={order.id}>
+                {orders.slice(0, Math.min(5, orders.length)).map((order) => (
+                  <tr key={order.id || Math.random().toString(36).substr(2, 9)}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                      <div className="text-sm font-medium text-gray-900">{safelyGetNestedProp(order, 'orderNumber', 'N/A')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{order.customer.username}</div>
+                      <div className="text-sm text-gray-900">{safelyGetNestedProp(order, 'customer.username', 'Unknown Customer')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString()}
+                        {formatDate(safelyGetNestedProp(order, 'createdAt'))}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status || 'Unknown')}`}>
+                        {order.status || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -320,22 +351,22 @@ const ManufacturerDashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {materialRequests.slice(0, 5).map((request) => (
-                  <tr key={request.id}>
+                {materialRequests.slice(0, Math.min(5, materialRequests.length)).map((request) => (
+                  <tr key={request.id || Math.random().toString(36).substr(2, 9)}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{request.requestNumber}</div>
+                      <div className="text-sm font-medium text-gray-900">{safelyGetNestedProp(request, 'requestNumber', 'N/A')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{request.supplier.username}</div>
+                      <div className="text-sm text-gray-900">{safelyGetNestedProp(request, 'supplier.username', 'Unknown Supplier')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
-                        {new Date(request.createdAt).toLocaleDateString()}
+                        {formatDate(safelyGetNestedProp(request, 'createdAt'))}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                        {request.status}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(request.status || 'Unknown')}`}>
+                        {request.status || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

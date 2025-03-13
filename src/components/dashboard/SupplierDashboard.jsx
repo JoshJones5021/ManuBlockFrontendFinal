@@ -44,94 +44,118 @@ const SupplierDashboard = () => {
     }
     };
 
-    const fetchDashboardData = async () => {
+const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+  
+      // Create helper function to safely handle potentially malformed responses
+      const safelyFetchData = async (apiCall, defaultValue = []) => {
         try {
-        setLoading(true);
-        
-        // Fetch supplier materials
-        const materialsResponse = await supplierService.getMaterials(currentUser.id);
-        const materialsData = materialsResponse.data;
-        setMaterials(materialsData);
-        
-        // Fetch pending material requests
-        const pendingResponse = await supplierService.getPendingRequests(currentUser.id);
-        const pendingData = pendingResponse.data;
-        setPendingRequests(pendingData);
-        
-        // Fetch approved but not allocated requests
-        const approvedResponse = await supplierService.getRequestsByStatus(currentUser.id, 'Approved');
-        const approvedData = approvedResponse.data;
-        setApprovedRequests(approvedData);
-        
-        // Mock fetch of allocated materials (would be an actual API call)
-        const allocatedResponse = await supplierService.getRequestsByStatus(currentUser.id, 'Allocated');
-        const totalAllocated = allocatedResponse.data.reduce((total, req) => {
-            const requestAllocated = req.items.reduce((sum, item) => 
-            item.status === 'Allocated' ? sum + item.allocatedQuantity : sum, 0);
-            return total + requestAllocated;
-        }, 0);
-        setAllocatedMaterials(totalAllocated);
-        
-        // Calculate stats
-        const lowStockCount = materialsData.filter(m => m.quantity < 100).length;
-        const trackedCount = materialsData.filter(m => m.blockchainItemId).length;
-        
-        setStats({
-            totalMaterials: materialsData.length,
-            totalAllocations: totalAllocated,
-            pendingRequests: pendingData.length,
-            lowStockMaterials: lowStockCount,
-            blockchainTracked: trackedCount
-        });
-        
-        // Construct recent activities
-        const activities = [];
-        
-        // Add recent request activities
-        const allRequests = [...pendingData, ...approvedData, ...allocatedResponse.data]
-            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-            .slice(0, 5);
-        
-        allRequests.forEach(req => {
-            let activityType;
-            switch(req.status) {
-            case 'Requested':
-                activityType = 'new-request';
-                break;
-            case 'Approved':
-                activityType = 'approved-request';
-                break;
-            case 'Allocated':
-                activityType = 'allocated-materials';
-                break;
-            case 'Ready for Pickup':
-                activityType = 'ready-for-pickup';
-                break;
-            default:
-                activityType = 'request-update';
-            }
-            
-            activities.push({
-            id: `req-${req.id}`,
-            type: activityType,
-            time: new Date(req.updatedAt),
-            details: {
-                requestNumber: req.requestNumber,
-                manufacturer: req.manufacturer.username,
-                items: req.items.length
-            }
-            });
-        });
-        
-        setRecentActivities(activities);
-        setError(null);
+          const response = await apiCall;
+          
+          // Check if response exists and has data property
+          if (response && response.data) {
+            // Convert non-array data to array if needed
+            return Array.isArray(response.data) ? response.data : [response.data];
+          }
+          return defaultValue;
         } catch (err) {
-        console.error('Error fetching supplier dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again later.');
-        } finally {
-        setLoading(false);
+          console.warn('Error fetching data:', err);
+          return defaultValue;
         }
-    };
+      };
+  
+      // Fetch data with safe fallbacks
+      const materialsData = await safelyFetchData(supplierService.getMaterials(currentUser.id));
+      const pendingData = await safelyFetchData(supplierService.getPendingRequests(currentUser.id));
+      const approvedData = await safelyFetchData(supplierService.getRequestsByStatus(currentUser.id, 'Approved'));
+      const allocatedData = await safelyFetchData(supplierService.getRequestsByStatus(currentUser.id, 'Allocated'));
+  
+      // Set state with fetched data
+      setMaterials(materialsData);
+      setPendingRequests(pendingData);
+      setApprovedRequests(approvedData);
+  
+      // Safely calculate allocated materials
+      const totalAllocated = allocatedData.reduce((total, req) => {
+        // Access items safely
+        const items = req && req.items && Array.isArray(req.items) ? req.items : [];
+        
+        // Calculate allocated quantity from items
+        const requestAllocated = items.reduce((sum, item) => {
+          return item && item.status === 'Allocated' && 
+                 typeof item.allocatedQuantity === 'number' ? 
+                 sum + item.allocatedQuantity : sum;
+        }, 0);
+        
+        return total + requestAllocated;
+      }, 0);
+      
+      setAllocatedMaterials(totalAllocated);
+      
+      // Calculate stats safely
+      const lowStockCount = materialsData.filter(m => 
+        m && typeof m.quantity === 'number' && m.quantity < 100
+      ).length;
+      
+      const trackedCount = materialsData.filter(m => 
+        m && m.blockchainItemId
+      ).length;
+      
+      setStats({
+        totalMaterials: materialsData.length,
+        totalAllocations: totalAllocated,
+        pendingRequests: pendingData.length,
+        lowStockMaterials: lowStockCount,
+        blockchainTracked: trackedCount
+      });
+      
+      // Safely extract activities from all available requests
+      const activities = [];
+      const allRequests = [...pendingData, ...approvedData, ...allocatedData]
+        .filter(req => req && req.status && req.updatedAt)
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        .slice(0, 5);
+      
+      allRequests.forEach(req => {
+        // Extract manufacturer name safely
+        const manufacturerName = req.manufacturer && 
+                                typeof req.manufacturer === 'object' && 
+                                req.manufacturer.username ? 
+                                req.manufacturer.username : 'Unknown';
+        
+        // Count items safely
+        const itemsCount = req.items && Array.isArray(req.items) ? 
+                          req.items.length : 0;
+        
+        // Determine activity type based on status
+        let activityType = 'request-update';
+        if (req.status === 'Requested') activityType = 'new-request';
+        else if (req.status === 'Approved') activityType = 'approved-request';
+        else if (req.status === 'Allocated') activityType = 'allocated-materials';
+        else if (req.status === 'Ready for Pickup') activityType = 'ready-for-pickup';
+        
+        activities.push({
+          id: `req-${req.id || Math.random().toString(36).substr(2, 9)}`,
+          type: activityType,
+          time: new Date(req.updatedAt),
+          details: {
+            requestNumber: req.requestNumber || 'Unknown',
+            manufacturer: manufacturerName,
+            items: itemsCount
+          }
+        });
+      });
+      
+      setRecentActivities(activities);
+    } catch (err) {
+      console.error('Error fetching supplier dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
     const formatActivityTime = (date) => {
         const now = new Date();

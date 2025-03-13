@@ -37,8 +37,15 @@ const customerService = {
 
 // Supplier Services
 const supplierService = {
+    getAllSuppliers: () => {
+        return api.get('/users', { params: { role: 'SUPPLIER' } });
+      },
     getMaterials: (supplierId) => {
-      return api.get(`/supplier/materials/${supplierId}`);
+    if (!supplierId) {
+        console.warn('Attempted to fetch materials without a valid supplierId');
+        return Promise.resolve({ data: [] });
+    }
+    return api.get(`/supplier/materials/${supplierId}`);
     },
     createMaterial: (materialData) => {
       return api.post('/supplier/materials', materialData);

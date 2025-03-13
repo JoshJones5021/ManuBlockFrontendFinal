@@ -26,6 +26,7 @@ const MaterialRequestsList = () => {
     quantity: ''
   });
   const [activeOrders, setActiveOrders] = useState([]);
+  const [supplyChains, setSupplyChains] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -38,18 +39,37 @@ const MaterialRequestsList = () => {
       // Fetch all required data in parallel
       const [requestsResponse, suppliersResponse, ordersResponse] = await Promise.all([
         manufacturerService.getMaterialRequests(currentUser.id),
-        supplierService.getMaterials(), // This would need to be implemented in your API
+        // Use the new getAllSuppliers method
+        supplierService.getAllSuppliers(),
         manufacturerService.getOrders(currentUser.id)
       ]);
       
-      setMaterialRequests(requestsResponse.data);
-      setSuppliers(suppliersResponse.data);
+      // Add defensive coding for safety
+      const requestsData = Array.isArray(requestsResponse.data) ? requestsResponse.data : [];
+      const suppliersData = Array.isArray(suppliersResponse.data) ? suppliersResponse.data : [];
+      const ordersData = Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
+      
+      setMaterialRequests(requestsData);
+      setSuppliers(suppliersData);
       
       // Filter orders that are in production or requested status
-      const activeOrdersData = ordersResponse.data.filter(
-        order => order.status === 'Requested' || order.status === 'In Production'
+      const activeOrdersData = ordersData.filter(
+        order => order && order.status && 
+        (order.status === 'Requested' || order.status === 'In Production')
       );
       setActiveOrders(activeOrdersData);
+      
+      // If we have suppliers, fetch materials for the first one
+      if (suppliersData.length > 0) {
+        // Set the default supplier in the form
+        setFormData(prev => ({
+          ...prev,
+          supplierId: suppliersData[0].id
+        }));
+        
+        // Fetch materials for this supplier
+        fetchSupplierMaterials(suppliersData[0].id);
+      }
       
       setError(null);
     } catch (err) {
@@ -66,7 +86,7 @@ const MaterialRequestsList = () => {
       items: [],
       requestedDeliveryDate: '',
       notes: '',
-      supplyChainId: 1, // Default value, should be selected in production
+      supplyChainId: supplyChains.length > 0 ? supplyChains[0].id : 1, // Use first supply chain as default
       orderId: null
     });
     setTempMaterial({
@@ -82,10 +102,30 @@ const MaterialRequestsList = () => {
   };
   
   const fetchSupplierMaterials = async (supplierId) => {
+    // Safety check - don't try to fetch materials without a valid ID
+    if (!supplierId) {
+      console.warn('Attempted to fetch materials without valid supplier ID');
+      setMaterials([]);
+      return;
+    }
+    
     try {
       const response = await supplierService.getMaterials(supplierId);
+      
+      // Ensure we have a valid response with data
+      if (!response || !response.data) {
+        setMaterials([]);
+        return;
+      }
+      
+      // Ensure data is an array
+      const materialsData = Array.isArray(response.data) ? response.data : [];
+      
       // Filter to only get active materials
-      const activeMaterials = response.data.filter(material => material.active);
+      const activeMaterials = materialsData.filter(material => 
+        material && typeof material.active === 'boolean' && material.active
+      );
+      
       setMaterials(activeMaterials);
     } catch (err) {
       console.error('Error fetching supplier materials:', err);
@@ -250,6 +290,27 @@ const MaterialRequestsList = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </button>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
+            Supply Chain
+          </label>
+          <select
+            id="supplyChainId"
+            name="supplyChainId"
+            value={formData.supplyChainId}
+            onChange={handleInputChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            required
+          >
+            <option value="">Select a supply chain</option>
+            {supplyChains.map((chain) => (
+              <option key={chain.id} value={chain.id}>
+                {chain.name}
+              </option>
+            ))}
+          </select>
         </div>
         
         <form onSubmit={handleCreateSubmit}>
@@ -507,60 +568,65 @@ const MaterialRequestsList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {materialRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{request.requestNumber}</div>
-                      {request.blockchainTxHash && (
-                        <div className="text-xs text-gray-500">
-                          TX: {request.blockchainTxHash.substring(0, 10)}...
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{request.supplier.username}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {request.items.length} items
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {formatDate(request.createdAt)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {request.requestedDeliveryDate ? (
-                          <div>
-                            <div>Requested: {formatDate(request.requestedDeliveryDate)}</div>
-                            {request.actualDeliveryDate && (
-                              <div className="text-green-600">
-                                Delivered: {formatDate(request.actualDeliveryDate)}
-                              </div>
-                            )}
+                {materialRequests.map((request) => {
+                  const supplier = suppliers.find(s => s.id === request.supplierId);
+                  return (
+                    <tr key={request.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{request.requestNumber}</div>
+                        {request.blockchainTxHash && (
+                          <div className="text-xs text-gray-500">
+                            TX: {request.blockchainTxHash.substring(0, 10)}...
                           </div>
-                        ) : (
-                          <span className="text-gray-500">No date specified</span>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link 
-                        to={`/manufacturer/material-requests/${request.id}`}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {supplier ? supplier.username : 'Unknown Supplier'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {request.items.length} items
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {formatDate(request.createdAt)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {request.requestedDeliveryDate ? (
+                            <div>
+                              <div>Requested: {formatDate(request.requestedDeliveryDate)}</div>
+                              {request.actualDeliveryDate && (
+                                <div className="text-green-600">
+                                  Delivered: {formatDate(request.actualDeliveryDate)}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">No date specified</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Link 
+                          to={`/manufacturer/material-requests/${request.id}`}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          View Details
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
