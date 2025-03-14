@@ -41,7 +41,7 @@ const ProductsList = () => {
         supplyChainResponse
       ] = await Promise.all([
         manufacturerService.getProducts(currentUser.id),
-        supplierService.getMaterials(),
+        manufacturerService.getAvailableMaterials(currentUser.id),
         supplyChainService.getSupplyChainsByUser(currentUser.id)
       ]);
       

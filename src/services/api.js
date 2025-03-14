@@ -115,6 +115,9 @@ const manufacturerService = {
   },
   getOrders: (manufacturerId) => {
     return api.get(`/manufacturer/orders/${manufacturerId}`);
+  },
+  getAvailableMaterials: (manufacturerId) => {
+    return api.get(`/manufacturer/materials/available/${manufacturerId}`);
   }
 };
 

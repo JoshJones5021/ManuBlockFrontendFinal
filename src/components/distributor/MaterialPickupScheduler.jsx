@@ -39,7 +39,7 @@ const MaterialPickupScheduler = () => {
     } catch (err) {
       console.error('Error fetching ready material requests:', err);
       setError('Failed to load material requests. Please try again later.');
-      setReadyMaterials([]); // Initialize as empty array in case of error
+      setReadyMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -93,13 +93,15 @@ const MaterialPickupScheduler = () => {
         return;
       }
       
-      // Prepare transport data
+      // Prepare transport data with timestamps instead of ISO strings
       const transportData = {
         distributorId: currentUser.id,
         materialRequestId: selectedRequest.id,
-        scheduledPickupDate: pickupDate.toISOString(),
-        scheduledDeliveryDate: deliveryDate.toISOString()
+        scheduledPickupDate: pickupDate.getTime(),  // Convert to timestamp (milliseconds)
+        scheduledDeliveryDate: deliveryDate.getTime()  // Convert to timestamp (milliseconds)
       };
+      
+      console.log("Sending transport data:", transportData);
       
       await distributorService.createMaterialTransport(transportData);
       
