@@ -1,3 +1,4 @@
+// src/components/common/Sidebar.jsx - Updated with distributor routes
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -76,9 +77,10 @@ const Sidebar = () => {
       case 'DISTRIBUTOR':
         return [
           ...items,
-          { path: '/distributor/transports', label: 'Transports', icon: '🚚' },
-          { path: '/distributor/material-pickups', label: 'Material Pickups', icon: '📦' },
-          { path: '/distributor/product-deliveries', label: 'Product Deliveries', icon: '📬' }
+          { path: '/distributor/transports', label: 'All Transports', icon: '🚚' },
+          { path: '/distributor/material-pickups/schedule', label: 'Schedule Pickups', icon: '📦' },
+          { path: '/distributor/product-deliveries/schedule', label: 'Schedule Deliveries', icon: '📬' },
+          { path: '/distributor/transport-management', label: 'Transport Management', icon: '🔄' }
         ];
         
       case 'CUSTOMER':

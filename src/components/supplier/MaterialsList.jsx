@@ -1,4 +1,4 @@
-// src/components/supplier/MaterialsList.jsx
+// src/components/supplier/MaterialsList.jsx - Fixed to handle supplyChains data correctly
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supplierService, supplyChainService, adminService } from '../../services/api';
@@ -45,11 +45,15 @@ const MaterialsList = () => {
   const fetchSupplyChains = async () => {
     try {
       // Use the proper service method to get supply chains for this user
-      const response = await supplyChainService.getSupplyChainsByUser(currentUser.id);
-      setSupplyChains(response.data);
+      const chains = await supplyChainService.getSupplyChainsByUser(currentUser.id);
+      
+      // Important change: supplyChainService.getSupplyChainsByUser returns the data directly, not a response object
+      // So we don't need to access .data on the result
+      setSupplyChains(Array.isArray(chains) ? chains : []);
+      
+      console.log('Supply chains fetched:', chains); // For debugging
     } catch (err) {
       console.error('Error fetching supply chains:', err);
-      // Don't set mock data, just set an empty array
       setSupplyChains([]);
     }
   };
@@ -386,6 +390,6 @@ const MaterialsList = () => {
       )}
     </div>
   );
-}
+};
 
 export default MaterialsList;

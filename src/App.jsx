@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - Updated with complete distributor routes
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -25,7 +25,17 @@ import MaterialRequestsList from './components/supplier/MaterialRequestsList';
 import MaterialAllocationManagement from './components/supplier/MaterialAllocationManagement';
 import ProductsList from './components/manufacturer/ProductsList';
 import ProductionBatchesList from './components/manufacturer/ProductionBatchesList';
+
+// Distributor Components
 import TransportsList from './components/distributor/TransportsList';
+import TransportDetails from './components/distributor/TransportDetails';
+import ActiveTransports from './components/distributor/ActiveTransports';
+import CompletedDeliveries from './components/distributor/CompletedDeliveries';
+import MaterialPickupScheduler from './components/distributor/MaterialPickupScheduler';
+import ProductDeliveryScheduler from './components/distributor/ProductDeliveryScheduler';
+import TransportManagement from './components/distributor/TransportManagement';
+
+// Customer Components
 import ProductCatalog from './components/customer/ProductCatalog';
 import OrdersList from './components/customer/OrdersList';
 import ManufacturerMaterialRequestsList from './components/manufacturer/MaterialRequestsList';
@@ -58,11 +68,11 @@ const App = () => {
             <Route path="users" element={<UserManagement />} />
             
             {/* Supplier Routes */}
-          <Route path="supplier">
-            <Route path="materials" element={<MaterialsList />} />
-            <Route path="requests" element={<MaterialRequestsList />} />
-            <Route path="allocations" element={<MaterialAllocationManagement />} />
-          </Route>
+            <Route path="supplier">
+              <Route path="materials" element={<MaterialsList />} />
+              <Route path="requests" element={<MaterialRequestsList />} />
+              <Route path="allocations" element={<MaterialAllocationManagement />} />
+            </Route>
             
             {/* Manufacturer Routes */}
             <Route path="manufacturer">
@@ -75,6 +85,12 @@ const App = () => {
             {/* Distributor Routes */}
             <Route path="distributor">
               <Route path="transports" element={<TransportsList />} />
+              <Route path="transports/:transportId" element={<TransportDetails />} />
+              <Route path="active-transports" element={<ActiveTransports />} />
+              <Route path="completed" element={<CompletedDeliveries />} />
+              <Route path="material-pickups/schedule" element={<MaterialPickupScheduler />} />
+              <Route path="product-deliveries/schedule" element={<ProductDeliveryScheduler />} />
+              <Route path="transport-management" element={<TransportManagement />} />
             </Route>
             
             {/* Customer Routes */}

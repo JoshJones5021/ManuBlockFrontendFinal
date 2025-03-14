@@ -120,28 +120,134 @@ const manufacturerService = {
 
 // Distributor Services
 const distributorService = {
-  getTransports: (distributorId) => {
-    return api.get(`/distributor/transports/${distributorId}`);
-  },
-  createMaterialTransport: (transportData) => {
-    return api.post('/distributor/transport/material', transportData);
-  },
-  createProductTransport: (transportData) => {
-    return api.post('/distributor/transport/product', transportData);
-  },
-  recordPickup: (transportId) => {
-    return api.post(`/distributor/transport/${transportId}/pickup`);
-  },
-  recordDelivery: (transportId) => {
-    return api.post(`/distributor/transport/${transportId}/delivery`);
-  },
-  getReadyMaterialRequests: () => {
-    return api.get('/distributor/materials/ready');
-  },
-  getReadyOrders: () => {
-    return api.get('/distributor/orders/ready');
-  }
-};
+    getTransports: (distributorId) => {
+      return api.get(`/distributor/transports/${distributorId}`);
+    },
+    createMaterialTransport: (transportData) => {
+      return api.post('/distributor/transport/material', transportData);
+    },
+    createProductTransport: (transportData) => {
+      return api.post('/distributor/transport/product', transportData);
+    },
+    recordPickup: (transportId) => {
+      return api.post(`/distributor/transport/${transportId}/pickup`);
+    },
+    recordDelivery: (transportId) => {
+      return api.post(`/distributor/transport/${transportId}/delivery`);
+    },
+    getReadyMaterialRequests: () => {
+      return api.get('/distributor/materials/ready');
+    },
+    getReadyOrders: () => {
+      return api.get('/distributor/orders/ready');
+    },
+  
+    // --- Enhanced and new methods ---
+    // Get a specific transport by ID
+    getTransportById: (transportId) => {
+      return api.get(`/distributor/transport/${transportId}`);
+    },
+    
+    // Get transports by status
+    getTransportsByStatus: (distributorId, status) => {
+      return api.get(`/distributor/transports/${distributorId}/status/${status}`);
+    },
+  
+    // Get transports by type
+    getTransportsByType: (distributorId, type) => {
+      return api.get(`/distributor/transports/${distributorId}/type/${type}`);
+    },
+  
+    // Get transports by source
+    getTransportsBySource: (sourceId) => {
+      return api.get(`/distributor/transports/source/${sourceId}`);
+    },
+  
+    // Get transports timeline/history for analytics
+    getTransportsTimeline: (distributorId, startDate, endDate) => {
+      return api.get(`/distributor/transports/${distributorId}/timeline`, {
+        params: { startDate, endDate }
+      });
+    },
+  
+    // Get delivery performance metrics
+    getDeliveryPerformance: (distributorId) => {
+      return api.get(`/distributor/performance/${distributorId}`);
+    },
+  
+    // Update transport status (more general method)
+    updateTransportStatus: (transportId, status) => {
+      return api.put(`/distributor/transport/${transportId}/status`, { status });
+    },
+  
+    // Cancel a scheduled transport that hasn't been picked up yet
+    cancelTransport: (transportId, reason) => {
+      return api.post(`/distributor/transport/${transportId}/cancel`, { reason });
+    },
+  
+    // Add tracking information or notes to a transport
+    addTransportNotes: (transportId, notes) => {
+      return api.post(`/distributor/transport/${transportId}/notes`, { notes });
+    },
+  
+    // Get pending pickup transports 
+    getPendingPickups: (distributorId) => {
+      return api.get(`/distributor/transports/${distributorId}/pending-pickup`);
+    },
+  
+    // Get a count of transports by status (dashboard widget)
+    getTransportCounts: (distributorId) => {
+      return api.get(`/distributor/transports/${distributorId}/counts`);
+    },
+  
+    // Utility methods for working with blockchain tracking
+    syncTransportWithBlockchain: (transportId, blockchainItemId) => {
+      return api.post(`/distributor/transport/${transportId}/blockchain-sync`, { blockchainItemId });
+    },
+  
+    // Get supply chain partners for a distributor
+    getSupplyChainPartners: (distributorId) => {
+      return api.get(`/distributor/partners/${distributorId}`);
+    },
+    
+    // Mock implementation for demonstration purposes - to be replaced with actual API call
+    // This would simulate fetching a specific transport
+    getMockTransportById: (transportId) => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            data: {
+              id: parseInt(transportId),
+              trackingNumber: `TRK-${100000 + parseInt(transportId)}`,
+              type: Math.random() > 0.5 ? 'Material Transport' : 'Product Delivery',
+              source: { id: 1, username: 'Acme Supplier' },
+              destination: { id: 2, username: 'XYZ Manufacturer' },
+              status: 'In Transit',
+              scheduledPickupDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              actualPickupDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+              scheduledDeliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+              actualDeliveryDate: null,
+              blockchainItemId: Math.random() > 0.3 ? Math.floor(Math.random() * 1000000) : null,
+              materialRequest: {
+                requestNumber: `REQ-${5000 + parseInt(transportId)}`,
+                items: Array(Math.floor(Math.random() * 5) + 1).fill(0).map((_, i) => ({
+                  material: { name: `Material ${i+1}` },
+                  quantity: Math.floor(Math.random() * 50) + 10
+                }))
+              },
+              order: {
+                orderNumber: `ORD-${8000 + parseInt(transportId)}`,
+                items: Array(Math.floor(Math.random() * 3) + 1).fill(0).map((_, i) => ({
+                  product: { name: `Product ${i+1}` },
+                  quantity: Math.floor(Math.random() * 10) + 1
+                }))
+              }
+            }
+          });
+        }, 300);
+      });
+    }
+  };
 
 // Supply Chain Services
 const supplyChainService = {

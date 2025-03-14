@@ -1,9 +1,9 @@
-// src/components/supplier/MaterialCreationForm.jsx
+// src/components/supplier/MaterialCreationForm.jsx - Fixed to handle undefined supplyChains
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supplierService } from '../../services/api';
 
-const MaterialCreationForm = ({ onSuccess, supplyChains }) => {
+const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add default empty array
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -99,7 +99,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains }) => {
               required
             >
               <option value="">Select Supply Chain</option>
-              {supplyChains.map(chain => (
+              {Array.isArray(supplyChains) && supplyChains.map(chain => (
                 <option key={chain.id} value={chain.id}>
                   {chain.name}
                 </option>
