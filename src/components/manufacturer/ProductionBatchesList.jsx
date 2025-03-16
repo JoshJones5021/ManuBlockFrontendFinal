@@ -43,7 +43,7 @@ const ProductionBatchesList = () => {
         batchesResponse, 
         productsResponse, 
         ordersResponse, 
-        supplyChainResponse
+        supplyChainResponse,
       ] = await Promise.all([
         manufacturerService.getProductionBatches(currentUser.id),
         manufacturerService.getProducts(currentUser.id),
@@ -65,6 +65,7 @@ const ProductionBatchesList = () => {
       setProductionBatches(batchesData);
       setProducts(productsData);
       setSupplyChains(finalizedChains);
+      setActiveOrders(ordersData);
       
       // Filter only active products
       const activeProductsData = productsData.filter(product => product.active);
@@ -74,7 +75,7 @@ const ProductionBatchesList = () => {
         // Update form with first available supply chain
         setFormData(prev => ({
           ...prev,
-          supplyChainId: finalizedChains[0].id
+          supplyChainId: finalizedChains[0].id,
         }));
         
         // Filter products based on first supply chain
@@ -126,7 +127,7 @@ const ProductionBatchesList = () => {
   };
   
   const filterOrdersByChain = (allOrders, chainId) => {
-    // Find orders that belong to this supply chain
+    // Find orders that belong to this supply chain and are in appropriate status
     const chainOrders = allOrders.filter(
       order => order.supplyChainId === parseInt(chainId) && 
       (order.status === 'Requested' || order.status === 'In Production')
@@ -143,6 +144,24 @@ const ProductionBatchesList = () => {
       }));
     }
   };
+
+    // Add this function after filterOrdersByChain
+    const filterOrdersByProduct = (productId) => {
+        if (!productId) {
+        setFilteredOrders([]);
+        return;
+        }
+        
+        // Filter orders that contain this product and are in appropriate statuses
+        const relevantOrders = activeOrders.filter(order => 
+        order.items && order.items.some(item => 
+            item.productId === parseInt(productId) && 
+            ['Requested', 'In Production'].includes(order.status)
+        )
+        );
+        
+        setFilteredOrders(relevantOrders);
+    };
   
   // Function to get status badge styling
   const getStatusBadgeClass = (status) => {
@@ -211,20 +230,23 @@ const ProductionBatchesList = () => {
     
     // If product changes, reload required materials
     if (name === 'productId') {
-      const selectedProduct = filteredProducts.find(p => p.id === parseInt(value));
-      if (selectedProduct && selectedProduct.requiredMaterials) {
+        const selectedProduct = filteredProducts.find(p => p.id === parseInt(value));
+        if (selectedProduct && selectedProduct.requiredMaterials) {
         // Initialize materials for batch creation
         const initialMaterials = selectedProduct.requiredMaterials.map(material => ({
-          materialId: material.id,
-          blockchainItemId: null, // This will be selected by the user
-          quantity: 0 // Default quantity
+            materialId: material.id,
+            blockchainItemId: null, // This will be selected by the user
+            quantity: 0 // Default quantity
         }));
         setFormData(prevState => ({
-          ...prevState,
-          materials: initialMaterials
+            ...prevState,
+            materials: initialMaterials
         }));
         setMaterials(selectedProduct.requiredMaterials);
-      }
+        
+        // Filter orders for this specific product
+        filterOrdersByProduct(value);
+        }
     }
   };
   
@@ -437,63 +459,10 @@ const ProductionBatchesList = () => {
               <option value="">None (Production for Stock)</option>
               {filteredOrders.map((order) => (
                 <option key={order.id} value={order.id}>
-                  Order #{order.orderNumber} - {order.customer.username}
+                  Order #{order.orderNumber} - {order.customerName || 'Unknown Customer'}
                 </option>
               ))}
             </select>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Required Materials <span className="text-red-500">*</span>
-            </label>
-            
-            {formData.materials.length > 0 ? (
-              <div className="border rounded p-4">
-                {formData.materials.map((material, index) => {
-                  const materialInfo = materials.find(m => m.id === material.materialId);
-                  
-                  return (
-                    <div key={index} className="mb-4 pb-4 border-b last:border-b-0">
-                      <div className="font-medium">{materialInfo?.name || 'Material'}</div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                        <div>
-                          <label className="block text-gray-700 text-xs mb-1">
-                            Blockchain Item ID <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={material.blockchainItemId || ''}
-                            onChange={(e) => handleMaterialChange(index, 'blockchainItemId', e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            placeholder="Enter blockchain ID"
-                            required
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-gray-700 text-xs mb-1">
-                            Quantity <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={material.quantity || ''}
-                            onChange={(e) => handleMaterialChange(index, 'quantity', e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            min="1"
-                            placeholder="Enter quantity"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">Please select a product to see required materials.</p>
-            )}
           </div>
           
           <div className="flex justify-end mt-6">

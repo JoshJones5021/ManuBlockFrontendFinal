@@ -40,6 +40,9 @@ import ProductCatalog from './components/customer/ProductCatalog';
 import OrdersList from './components/customer/OrdersList';
 import ManufacturerMaterialRequestsList from './components/manufacturer/MaterialRequestsList';
 import MaterialRequestDetails from './components/manufacturer/MaterialRequestDetails';
+import OrderTracking from './components/customer/OrderTracking';
+import OrdersLists from './components/manufacturer/OrdersList';
+import OrderDetails from './components/manufacturer/OrderDetails';
 
 const App = () => {
   return (
@@ -80,6 +83,8 @@ const App = () => {
               <Route path="production" element={<ProductionBatchesList />} />
               <Route path="material-requests" element={<ManufacturerMaterialRequestsList />} />
               <Route path="material-requests/:requestId" element={<MaterialRequestDetails />} />
+              <Route path="orders" element={<OrdersLists />} />
+              <Route path="orders/:orderId" element={<OrderDetails />} />
             </Route>
             
             {/* Distributor Routes */}
@@ -97,6 +102,7 @@ const App = () => {
             <Route path="customer">
               <Route path="products" element={<ProductCatalog />} />
               <Route path="orders" element={<OrdersList />} />
+              <Route path="tracking" element={<OrderTracking />} />
             </Route>
           </Route>
           

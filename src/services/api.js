@@ -32,6 +32,9 @@ const customerService = {
   },
   confirmDelivery: (orderId) => {
     return api.post(`/customer/orders/${orderId}/confirm`);
+  },
+  trackOrder: (orderNumber) => {
+    return api.get(`/customer/orders/number/${orderNumber}`);
   }
 };
 
@@ -118,7 +121,10 @@ const manufacturerService = {
   },
   getAvailableMaterials: (manufacturerId) => {
     return api.get(`/manufacturer/materials/available/${manufacturerId}`);
-  }
+  },
+  startOrderProduction: (orderId) => {
+    return api.post(`/manufacturer/orders/${orderId}/start-production`);
+  },
 };
 
 // Distributor Services
