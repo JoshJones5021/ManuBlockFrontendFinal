@@ -25,6 +25,7 @@ import MaterialRequestsList from './components/supplier/MaterialRequestsList';
 import MaterialAllocationManagement from './components/supplier/MaterialAllocationManagement';
 import ProductsList from './components/manufacturer/ProductsList';
 import ProductionBatchesList from './components/manufacturer/ProductionBatchesList';
+import MaterialRequestApproval from './components/supplier/MaterialRequestApproval';
 
 // Distributor Components
 import TransportsList from './components/distributor/TransportsList';
@@ -74,6 +75,7 @@ const App = () => {
             <Route path="supplier">
               <Route path="materials" element={<MaterialsList />} />
               <Route path="requests" element={<MaterialRequestsList />} />
+              <Route path="requests/:requestId/approve" element={<MaterialRequestApproval />} />
               <Route path="allocations" element={<MaterialAllocationManagement />} />
             </Route>
             

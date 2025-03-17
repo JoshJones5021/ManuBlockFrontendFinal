@@ -170,7 +170,7 @@ const MaterialRequestDetails = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Supplier</h3>
-              <p className="text-base">{materialRequest.supplier.username}</p>
+              <p className="text-base">{materialRequest.supplier?.username || 'Unknown Supplier'}</p>
             </div>
             
             <div>

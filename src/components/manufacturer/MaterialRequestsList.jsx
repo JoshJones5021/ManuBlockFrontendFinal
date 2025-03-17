@@ -16,8 +16,7 @@ const MaterialRequestsList = () => {
     items: [],
     requestedDeliveryDate: '',
     notes: '',
-    supplyChainId: '',
-    orderId: null
+    supplyChainId: ''
   });
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -324,7 +323,6 @@ const handleCreateSubmit = async (e) => {
       manufacturerId: parseInt(currentUser.id),
       supplierId: parseInt(formData.supplierId),
       supplyChainId: parseInt(formData.supplyChainId),
-      orderId: formData.orderId ? parseInt(formData.orderId) : null,
       items: formData.items.map(item => ({
         materialId: parseInt(item.materialId),
         quantity: parseInt(item.quantity)
@@ -451,26 +449,6 @@ const handleCreateSubmit = async (e) => {
           </div>
           
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="orderId">
-              Related Order (Optional)
-            </label>
-            <select
-              id="orderId"
-              name="orderId"
-              value={formData.orderId || ''}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            >
-              <option value="">None</option>
-              {activeOrders.map((order) => (
-                <option key={order.id} value={order.id}>
-                  Order #{order.orderNumber} - {order.customer.username}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="requestedDeliveryDate">
               Requested Delivery Date (Optional)
             </label>
@@ -561,27 +539,28 @@ const handleCreateSubmit = async (e) => {
               <div className="border rounded p-4">
                 <h4 className="font-medium mb-2">Materials in this request:</h4>
                 <ul className="divide-y">
-                  {formData.items.map((item, index) => {
-                    const materialInfo = materials.find(m => m.id === parseInt(item.materialId));
-                    
-                    return (
-                      <li key={index} className="py-2 flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">{materialInfo?.name || 'Unknown Material'}</span>
-                          <span className="text-gray-500 text-sm ml-2">
-                            Qty: {item.quantity} {materialInfo?.unit || 'units'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeMaterialFromRequest(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    );
-                  })}
+                {formData.items.map((item, index) => {
+                  // Parse the materialId as integer to ensure proper comparison
+                  const materialInfo = materials.find(m => m.id === parseInt(item.materialId));
+                  
+                  return (
+                    <li key={index} className="py-2 flex justify-between items-center">
+                      <div>
+                        <span className="font-medium">{materialInfo?.name || 'Unknown Material'}</span>
+                        <span className="text-gray-500 text-sm ml-2">
+                          Qty: {item.quantity} {materialInfo?.unit || 'units'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMaterialFromRequest(index)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
                 </ul>
               </div>
             ) : (

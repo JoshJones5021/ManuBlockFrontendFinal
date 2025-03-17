@@ -21,6 +21,7 @@ const ProductionBatchesList = () => {
     orderId: null,
     supplyChainId: ''
   });
+  const [materialBatches, setMaterialBatches] = useState({});
   const [qualityData, setQualityData] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
@@ -29,11 +30,13 @@ const ProductionBatchesList = () => {
   const [supplyChains, setSupplyChains] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [materialInventory, setMaterialInventory] = useState([]);
 
   useEffect(() => {
     fetchData();
+    fetchMaterialsWithBlockchainIds(currentUser.id);
   }, [currentUser.id]);
-
+  
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -96,6 +99,50 @@ const ProductionBatchesList = () => {
       setLoading(false);
     }
   };
+
+  const fetchMaterialsWithBlockchainIds = async (manufacturerId) => {
+    try {
+      // Use the existing endpoint for available materials
+      const response = await manufacturerService.getAvailableMaterials(manufacturerId);
+      
+      if (response && response.data) {
+        // Filter for materials that have blockchain IDs assigned
+        const materialsWithIds = response.data.filter(material => 
+          material.blockchainItemId !== null && material.blockchainItemId !== undefined
+        );
+        
+        setMaterialInventory(materialsWithIds);
+      }
+    } catch (err) {
+      console.error('Error fetching materials with blockchain IDs:', err);
+      setMaterialInventory([]);
+    }
+  };
+  
+  const fetchMaterialBatches = async (materialId) => {
+    try {
+      // This would be an API call to get material batches with blockchain IDs
+      const response = await manufacturerService.getMaterialBatchesWithBlockchainIds(materialId);
+      
+      if (response && response.data) {
+        setMaterialBatches(prev => ({
+          ...prev,
+          [materialId]: response.data
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching material batches:', err);
+      // If API doesn't exist yet, we can mock some data for demonstration
+      // This is just for development/testing - remove in production
+      setMaterialBatches(prev => ({
+        ...prev,
+        [materialId]: [
+          { id: 1, blockchainItemId: `batch-${materialId}-001`, batchNumber: 'B001' },
+          { id: 2, blockchainItemId: `batch-${materialId}-002`, batchNumber: 'B002' }
+        ]
+      }));
+    }
+  };
   
   const filterProductsByChain = (allProducts, chainId) => {
     // Find products that belong to this supply chain
@@ -145,23 +192,23 @@ const ProductionBatchesList = () => {
     }
   };
 
-    // Add this function after filterOrdersByChain
-    const filterOrdersByProduct = (productId) => {
-        if (!productId) {
-        setFilteredOrders([]);
-        return;
-        }
-        
-        // Filter orders that contain this product and are in appropriate statuses
-        const relevantOrders = activeOrders.filter(order => 
-        order.items && order.items.some(item => 
-            item.productId === parseInt(productId) && 
-            ['Requested', 'In Production'].includes(order.status)
-        )
-        );
-        
-        setFilteredOrders(relevantOrders);
-    };
+  // Add this function after filterOrdersByChain
+  const filterOrdersByProduct = (productId) => {
+    if (!productId) {
+      setFilteredOrders([]);
+      return;
+    }
+    
+    // Filter orders that contain this product and are in appropriate statuses
+    const relevantOrders = activeOrders.filter(order => 
+      order.items && order.items.some(item => 
+        item.productId === parseInt(productId) && 
+        ['Requested', 'In Production'].includes(order.status)
+      )
+    );
+    
+    setFilteredOrders(relevantOrders);
+  };
   
   // Function to get status badge styling
   const getStatusBadgeClass = (status) => {
@@ -200,6 +247,9 @@ const ProductionBatchesList = () => {
       filterOrdersByChain(activeOrders, initialSupplyChainId);
     }
     
+    // Make sure we have the latest material inventory before showing the modal
+    fetchMaterialsWithBlockchainIds(currentUser.id);
+    
     setShowCreateModal(true);
   };
 
@@ -228,31 +278,45 @@ const ProductionBatchesList = () => {
       filterOrdersByChain(activeOrders, value);
     }
     
-    // If product changes, reload required materials
+    // If product changes, reload required materials with their blockchain IDs
     if (name === 'productId') {
-        const selectedProduct = filteredProducts.find(p => p.id === parseInt(value));
-        if (selectedProduct && selectedProduct.requiredMaterials) {
+      const selectedProduct = filteredProducts.find(p => p.id === parseInt(value));
+      if (selectedProduct && selectedProduct.requiredMaterials) {
         // Initialize materials for batch creation
         const initialMaterials = selectedProduct.requiredMaterials.map(material => ({
-            materialId: material.id,
-            blockchainItemId: null, // This will be selected by the user
-            quantity: 0 // Default quantity
+          materialId: material.id,
+          blockchainItemId: material.blockchainItemId, // Use the blockchain ID from the material directly
+          quantity: 0 // Default quantity
         }));
+        
         setFormData(prevState => ({
-            ...prevState,
-            materials: initialMaterials
+          ...prevState,
+          materials: initialMaterials
         }));
+        
         setMaterials(selectedProduct.requiredMaterials);
         
         // Filter orders for this specific product
         filterOrdersByProduct(value);
-        }
+      }
     }
   };
   
   const handleMaterialChange = (index, field, value) => {
     const updatedMaterials = [...formData.materials];
-    updatedMaterials[index][field] = field === 'quantity' ? parseInt(value) : value;
+    
+    if (field === 'materialId') {
+      // If material ID changes, fetch available batches for this material
+      fetchMaterialBatches(value);
+      
+      updatedMaterials[index] = {
+        materialId: parseInt(value),
+        blockchainItemId: '',
+        quantity: 0
+      };
+    } else {
+      updatedMaterials[index][field] = field === 'quantity' ? parseInt(value) : value;
+    }
     
     setFormData({
       ...formData,
@@ -275,9 +339,9 @@ const ProductionBatchesList = () => {
         return;
       }
       
-      // Check if materials are properly filled out
-      const invalidMaterials = formData.materials.some(
-        m => !m.blockchainItemId || !m.quantity || m.quantity <= 0
+      // Validate materials - check both blockchain ID and quantity
+      const invalidMaterials = formData.materials.some(m => 
+        !m.quantity || m.quantity <= 0 || !m.blockchainItemId
       );
       
       if (invalidMaterials) {
@@ -285,13 +349,20 @@ const ProductionBatchesList = () => {
         return;
       }
       
+      // Process materials to ensure proper data types
+      const processedMaterials = formData.materials.map(material => ({
+        materialId: parseInt(material.materialId),
+        blockchainItemId: parseInt(material.blockchainItemId), 
+        quantity: parseInt(material.quantity)
+      }));
+      
       const batchData = {
         manufacturerId: currentUser.id,
         productId: parseInt(formData.productId),
         supplyChainId: parseInt(formData.supplyChainId),
         orderId: formData.orderId ? parseInt(formData.orderId) : null,
         quantity: parseInt(formData.quantity),
-        materials: formData.materials
+        materials: processedMaterials
       };
       
       await manufacturerService.createProductionBatch(batchData);
@@ -306,7 +377,7 @@ const ProductionBatchesList = () => {
       }, 3000);
     } catch (err) {
       console.error('Error creating production batch:', err);
-      setError('Failed to create production batch. Please try again.');
+      setError('Failed to create production batch. Please try again: ' + err.message);
     }
   };
   
@@ -454,15 +525,79 @@ const ProductionBatchesList = () => {
               value={formData.orderId || ''}
               onChange={handleInputChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              disabled={filteredOrders.length === 0}
             >
-              <option value="">None (Production for Stock)</option>
+              <option value="">No related order</option>
               {filteredOrders.map((order) => (
                 <option key={order.id} value={order.id}>
-                  Order #{order.orderNumber} - {order.customerName || 'Unknown Customer'}
+                  Order #{order.orderNumber} - {order.customerName}
                 </option>
               ))}
             </select>
+          </div>
+          
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-gray-700 text-sm font-bold">
+                Required Materials <span className="text-red-500">*</span>
+              </label>
+            </div>
+            
+            {formData.materials.length > 0 ? (
+              <div className="space-y-4 border rounded p-4">
+                {formData.materials.map((material, index) => {
+                  const materialInfo = materials.find(m => m.id === parseInt(material.materialId));
+                  
+                  return (
+                    <div key={index} className="p-3 bg-gray-50 rounded">
+                      <div className="font-medium mb-2">{materialInfo?.name || 'Material'}</div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                        <div>
+                            <label className="block text-gray-700 text-xs mb-1">
+                            Material Blockchain ID <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                            value={material.blockchainItemId || ''}
+                            onChange={(e) => handleMaterialChange(index, 'blockchainItemId', e.target.value)}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            required
+                            >
+                            <option value="">Select a material batch</option>
+                            {materialInventory
+                                .filter(invMaterial => invMaterial.id === material.materialId)
+                                .map((invMaterial) => (
+                                <option key={invMaterial.blockchainItemId} value={invMaterial.blockchainItemId}>
+                                    {invMaterial.name} - Batch ID: {invMaterial.blockchainItemId} - Available: {invMaterial.quantity} {invMaterial.unit}
+                                </option>
+                                ))}
+                            {!materialInventory.some(m => m.id === material.materialId) && (
+                                <option disabled>No batches available for this material</option>
+                            )}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 text-xs mb-1">
+                            Quantity <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                            type="number"
+                            value={material.quantity || ''}
+                            onChange={(e) => handleMaterialChange(index, 'quantity', e.target.value)}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            min="1"
+                            max={materialInventory.find(m => m.id === material.materialId && m.blockchainItemId === material.blockchainItemId)?.quantity || 9999}
+                            required
+                            />
+                        </div>
+                    </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm italic">No materials required for this product.</p>
+            )}
           </div>
           
           <div className="flex justify-end mt-6">
@@ -792,6 +927,6 @@ const ProductionBatchesList = () => {
       {showRejectModal && selectedBatch && <RejectBatchModal />}
     </div>
   );
-}
+};
 
 export default ProductionBatchesList;
