@@ -19,6 +19,8 @@ const OrderDetails = () => {
     scheduledDeliveryDate: '',
     notes: ''
   });
+  const [distributors, setDistributors] = useState([]);
+  const [selectedDistributorId, setSelectedDistributorId] = useState('');
   
   // Use a ref to track if inventory has been fetched to prevent infinite loops
   const inventoryFetchedRef = useRef(false);
@@ -32,6 +34,32 @@ const OrderDetails = () => {
     if (order && order.items && !inventoryFetchedRef.current) {
       fetchProductInventory();
       inventoryFetchedRef.current = true; // Mark as fetched
+    }
+  }, [order]);
+
+  // Fetch distributors when the order is loaded
+  useEffect(() => {
+    const fetchDistributors = async () => {
+      try {
+        // This is just a placeholder - modify to use actual endpoint that gets distributors
+        // for your system once it's implemented
+        const mockDistributors = [
+          { id: 4, username: "MainDistributor" },
+          { id: 5, username: "SecondaryDistributor" }
+        ];
+        setDistributors(mockDistributors);
+        
+        // Set default distributor
+        if (mockDistributors.length > 0) {
+          setSelectedDistributorId(mockDistributors[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching distributors:', error);
+      }
+    };
+    
+    if (order && order.supplyChainId) {
+      fetchDistributors();
     }
   }, [order]);
 
@@ -96,46 +124,64 @@ const OrderDetails = () => {
     try {
       setActionLoading(true);
       
+      // Validate distributor selection
+      if (!selectedDistributorId) {
+        setError('Please select a distributor');
+        setActionLoading(false);
+        return;
+      }
+      
       // Convert date string to Date object if needed
       const scheduledDate = deliveryInfo.scheduledDeliveryDate 
         ? new Date(deliveryInfo.scheduledDeliveryDate).toISOString()
         : null;
       
-      // 1. Create transport data for distribution
-      const transportData = {
-        orderId: order.id,
+      // Prepare the request data
+      const fulfillmentData = {
         manufacturerId: currentUser.id,
         customerId: order.customerId,
+        distributorId: parseInt(selectedDistributorId), // Convert to number
+        supplyChainId: order.supplyChainId,
         scheduledDeliveryDate: scheduledDate,
-        notes: deliveryInfo.notes,
-        supplyChainId: order.supplyChainId
+        notes: deliveryInfo.notes
       };
       
-      // 2. Instead of updating inventory directly, we'll mark the order as ready for shipment
-      // and let the server handle inventory updates
+      console.log("Sending fulfillment data:", fulfillmentData);
       
-      // 3. Mark order as ready for shipment
-      await manufacturerService.startOrderProduction(order.id);
+      // Call the new endpoint
+      const response = await manufacturerService.fulfillOrderFromStock(order.id, fulfillmentData);
       
-      // 4. Create the transport request with the distributor
-      // You may need to adjust this if this function doesn't exist either
-      if (distributorService.createProductTransport) {
-        await distributorService.createProductTransport(transportData);
+      console.log("Fulfillment response:", response);
+      
+      // Update order with the response data
+      if (response.data && response.data.order) {
+        setOrder(response.data.order);
+        
+        // Show success message from response if available
+        if (response.data.message) {
+          setSuccess(response.data.message);
+        } else {
+          setSuccess('Order fulfilled from stock and ready for shipment!');
+        }
       } else {
-        console.log('Skipping transport creation - function not available');
+        // Fallback if response format is unexpected
+        setOrder({
+          ...order,
+          status: 'Ready for Shipment'
+        });
+        setSuccess('Order fulfilled from stock and ready for shipment!');
       }
       
-      // Update local state
-      setOrder({
-        ...order,
-        status: 'In Production'
-      });
-      
       setShowFulfillModal(false);
-      setSuccess('Order has been marked for production. Since stock is available, it will be ready for shipment soon!');
     } catch (err) {
       console.error('Error fulfilling order:', err);
-      setError('Failed to fulfill order. Please try again.');
+      
+      // Show error from response if available
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Failed to fulfill order. Please try again.');
+      }
     } finally {
       setActionLoading(false);
     }
@@ -261,8 +307,33 @@ const OrderDetails = () => {
           </div>
           
           <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="distributorId">
+              Distributor <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="distributorId"
+              value={selectedDistributorId}
+              onChange={(e) => setSelectedDistributorId(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              required
+            >
+              <option value="">Select a distributor</option>
+              {distributors.map((distributor) => (
+                <option key={distributor.id} value={distributor.id}>
+                  {distributor.username}
+                </option>
+              ))}
+            </select>
+            {distributors.length === 0 && (
+              <p className="text-red-500 text-xs italic mt-1">
+                No distributors available for this supply chain.
+              </p>
+            )}
+          </div>
+          
+          <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="scheduledDeliveryDate">
-              Scheduled Delivery Date
+              Scheduled Delivery Date <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
@@ -300,7 +371,7 @@ const OrderDetails = () => {
             <button
               type="submit"
               className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-              disabled={actionLoading || !canFulfillFromInventory()}
+              disabled={actionLoading || !canFulfillFromInventory() || !selectedDistributorId}
             >
               {actionLoading ? (
                 <>
@@ -380,6 +451,12 @@ const OrderDetails = () => {
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
           {success}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          {error}
         </div>
       )}
 
@@ -580,7 +657,7 @@ const OrderDetails = () => {
           {order.status === 'Ready for Shipment' && (
             <div className="bg-green-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-green-800 mb-2">Order is ready for shipment</h3>
-              <p className="text-green-700">The distributor has been notified and will pick up this order soon.</p>
+              <p className="text-green-700">The products have been reserved from inventory and the distributor has been notified.</p>
             </div>
           )}
 

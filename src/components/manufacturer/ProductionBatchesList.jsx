@@ -357,9 +357,17 @@ const ProductionBatchesList = () => {
         blockchainItemId: '',
         quantity: 0
       };
+    } else if (field === 'blockchainItemId') {
+      // Ensure blockchainItemId is stored as a number if possible
+      updatedMaterials[index][field] = value === '' ? '' : parseInt(value);
+    } else if (field === 'quantity') {
+      // Ensure quantity is stored as a number
+      updatedMaterials[index][field] = value === '' ? 0 : parseInt(value);
     } else {
-      updatedMaterials[index][field] = field === 'quantity' ? parseInt(value) : value;
+      updatedMaterials[index][field] = value;
     }
+    
+    console.log(`Updated material at index ${index}, field ${field} to:`, updatedMaterials[index]);
     
     setFormData({
       ...formData,
@@ -636,10 +644,9 @@ const ProductionBatchesList = () => {
                                 >
                                 <option value="">Select a material batch</option>
                                 {materialInventory
-                                    // Filter to only show materials with the correct ID AND item_type="allocated-material"
                                     .filter(invMaterial => 
-                                    invMaterial.id === material.materialId && 
-                                    invMaterial.itemType === "allocated-material"
+                                        invMaterial.id === material.materialId && 
+                                        invMaterial.itemType === "allocated-material"
                                     )
                                     .map((invMaterial) => (
                                     <option 
@@ -706,9 +713,12 @@ const ProductionBatchesList = () => {
                   formData.materials.some(m => {
                     const materialInfo = materials.find(info => info.materialId === parseInt(m.materialId));
                     const totalRequired = calculateTotalMaterialNeeded(materialInfo?.quantity || 0, formData.quantity);
-                    const selectedBatch = materialInventory.find(inv => inv.blockchainItemId === m.blockchainItemId);
+                    const selectedBatch = materialInventory.find(inv => 
+                        inv.blockchainItemId === m.blockchainItemId && 
+                        inv.ownerId === currentUser.id // Verify ownership
+                    );
                     return selectedBatch && selectedBatch.quantity < totalRequired;
-                  })
+                })
                 }
               >
                 Create Batch
@@ -939,7 +949,7 @@ const ProductionBatchesList = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {productionBatches.map((batch) => {
-                  const supplyChain = supplyChains.find(sc => sc.id === batch.supplyChain?.id);
+                  const supplyChain = supplyChains.find(sc => parseInt(sc.id) === parseInt(batch.supplyChainId));
                   
                   return (
                     <tr key={batch.id} className="hover:bg-gray-50">
@@ -958,7 +968,7 @@ const ProductionBatchesList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {supplyChain ? supplyChain.name : 'Unknown Chain'}
+                            {supplyChain ? supplyChain.name : (batch.supplyChainName || 'Unknown Chain')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
