@@ -1,8 +1,9 @@
-// src/components/distributor/TransportsList.jsx
+// src/components/distributor/TransportsList.jsx - Consolidated from multiple components
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { distributorService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import RecordTransportAction from './RecordTransportAction';
 
 const TransportsList = () => {
   const { currentUser } = useAuth();
@@ -11,9 +12,18 @@ const TransportsList = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTransport, setSelectedTransport] = useState(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [modalAction, setModalAction] = useState('');
+  const [stats, setStats] = useState({
+    total: 0,
+    scheduled: 0,
+    inTransit: 0,
+    delivered: 0,
+    onTimeDeliveries: 0,
+    delayedDeliveries: 0
+  });
 
   useEffect(() => {
     fetchTransports();
@@ -24,6 +34,7 @@ const TransportsList = () => {
       setLoading(true);
       const response = await distributorService.getTransports(currentUser.id);
       setTransports(response.data);
+      calculateStats(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching transports:', err);
@@ -31,6 +42,40 @@ const TransportsList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateStats = (transportData) => {
+    if (!transportData || !Array.isArray(transportData)) return;
+    
+    const scheduled = transportData.filter(t => t.status === 'Scheduled').length;
+    const inTransit = transportData.filter(t => t.status === 'In Transit').length;
+    const delivered = transportData.filter(t => t.status === 'Delivered').length;
+    
+    let onTime = 0;
+    let delayed = 0;
+    
+    const deliveredTransports = transportData.filter(t => t.status === 'Delivered');
+    deliveredTransports.forEach(transport => {
+      if (transport.scheduledDeliveryDate && transport.actualDeliveryDate) {
+        const scheduledDate = new Date(transport.scheduledDeliveryDate);
+        const actualDate = new Date(transport.actualDeliveryDate);
+        
+        if (actualDate <= scheduledDate) {
+          onTime++;
+        } else {
+          delayed++;
+        }
+      }
+    });
+    
+    setStats({
+      total: transportData.length,
+      scheduled,
+      inTransit,
+      delivered,
+      onTimeDeliveries: onTime,
+      delayedDeliveries: delayed
+    });
   };
 
   const handleTabChange = (tab) => {
@@ -70,15 +115,25 @@ const TransportsList = () => {
     }
   };
 
-  // Filter transports based on active tab
+  // Filter transports based on active tab and search term
   const filteredTransports = transports.filter(transport => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'material') return transport.type === 'Material Transport';
-    if (activeTab === 'product') return transport.type === 'Product Delivery';
-    if (activeTab === 'scheduled') return transport.status === 'Scheduled';
-    if (activeTab === 'in-transit') return transport.status === 'In Transit';
-    if (activeTab === 'delivered') return transport.status === 'Delivered';
-    return true;
+    // Apply tab filter
+    const tabFilter = 
+      activeTab === 'all' ? true :
+      activeTab === 'material' ? transport.type === 'Material Transport' :
+      activeTab === 'product' ? transport.type === 'Product Delivery' :
+      activeTab === 'scheduled' ? transport.status === 'Scheduled' :
+      activeTab === 'in-transit' ? transport.status === 'In Transit' :
+      activeTab === 'delivered' ? transport.status === 'Delivered' : true;
+    
+    // Apply search filter
+    const searchFilter = 
+      !searchTerm ? true :
+      (transport.trackingNumber && transport.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (transport.source?.username && transport.source.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (transport.destination?.username && transport.destination.username.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    return tabFilter && searchFilter;
   });
 
   const getStatusBadge = (status) => {
@@ -99,10 +154,23 @@ const TransportsList = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const calculateDaysInTransit = (pickupDate) => {
+    if (!pickupDate) return 0;
+    
+    const pickup = new Date(pickupDate);
+    const today = new Date();
+    const diffTime = Math.abs(today - pickup);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  };
+
   if (loading && transports.length === 0) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
       </div>
     );
   }
@@ -110,20 +178,35 @@ const TransportsList = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Transports</h1>
+        <h1 className="text-2xl font-semibold">Transport Management</h1>
         <div className="flex space-x-2">
           <Link 
             to="/distributor/material-pickups/schedule"
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
           >
-            Schedule Material Pickup
+            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Schedule Pickup
           </Link>
           <Link 
             to="/distributor/product-deliveries/schedule"
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center"
           >
-            Schedule Product Delivery
+            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Schedule Delivery
           </Link>
+          <button 
+            onClick={fetchTransports}
+            className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded flex items-center"
+          >
+            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -140,81 +223,205 @@ const TransportsList = () => {
           <span className="block sm:inline"> {success}</span>
         </div>
       )}
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center">
+            <div className="bg-gray-500 rounded-full p-2">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-gray-600 text-xs font-medium">Total</h2>
+              <p className="text-xl font-semibold text-gray-800">{stats.total}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center">
+            <div className="bg-blue-500 rounded-full p-2">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-gray-600 text-xs font-medium">Scheduled</h2>
+              <p className="text-xl font-semibold text-blue-600">{stats.scheduled}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center">
+            <div className="bg-yellow-500 rounded-full p-2">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-gray-600 text-xs font-medium">In Transit</h2>
+              <p className="text-xl font-semibold text-yellow-600">{stats.inTransit}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center">
+            <div className="bg-green-500 rounded-full p-2">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-gray-600 text-xs font-medium">Delivered</h2>
+              <p className="text-xl font-semibold text-green-600">{stats.delivered}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center">
+            <div className="bg-green-500 rounded-full p-2">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-gray-600 text-xs font-medium">On Time</h2>
+              <p className="text-xl font-semibold text-green-600">{stats.onTimeDeliveries}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center">
+            <div className="bg-red-500 rounded-full p-2">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-gray-600 text-xs font-medium">Delayed</h2>
+              <p className="text-xl font-semibold text-red-600">{stats.delayedDeliveries}</p>
+            </div>
+          </div>
+        </div>
+      </div>
       
-      {/* Filter Tabs */}
-      <div className="mb-6 bg-white rounded-lg shadow-md overflow-hidden">
-        <nav className="flex">
-          <button
-            onClick={() => handleTabChange('all')}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === 'all'
-                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => handleTabChange('material')}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === 'material'
-                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            Material Transports
-          </button>
-          <button
-            onClick={() => handleTabChange('product')}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === 'product'
-                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            Product Deliveries
-          </button>
-          <button
-            onClick={() => handleTabChange('scheduled')}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === 'scheduled'
-                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            Scheduled
-          </button>
-          <button
-            onClick={() => handleTabChange('in-transit')}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === 'in-transit'
-                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            In Transit
-          </button>
-          <button
-            onClick={() => handleTabChange('delivered')}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === 'delivered'
-                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            Delivered
-          </button>
-        </nav>
+      {/* Search and Filter */}
+      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              id="search"
+              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              placeholder="Search by tracking number, source, or destination..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="self-end">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleTabChange('all')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'all'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => handleTabChange('scheduled')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'scheduled'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Scheduled
+              </button>
+              <button
+                onClick={() => handleTabChange('in-transit')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'in-transit'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                In Transit
+              </button>
+              <button
+                onClick={() => handleTabChange('delivered')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'delivered'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Delivered
+              </button>
+              <button
+                onClick={() => handleTabChange('material')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'material'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Material Transports
+              </button>
+              <button
+                onClick={() => handleTabChange('product')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'product'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Product Deliveries
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Transports */}
+      {/* Transports Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {filteredTransports.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-gray-500 mb-4">No transports found for your selected filter.</p>
-            <p className="text-sm text-gray-500">
-              Use the buttons above to schedule new material pickups or product deliveries.
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No transports found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {transports.length > 0 
+                ? 'Try adjusting your search or filter criteria' 
+                : 'Get started by scheduling a new material pickup or product delivery'
+              }
             </p>
+            <div className="mt-6 flex justify-center space-x-4">
+              <Link
+                to="/distributor/material-pickups/schedule"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Schedule Pickup
+              </Link>
+              <Link
+                to="/distributor/product-deliveries/schedule"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+              >
+                Schedule Delivery
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -234,10 +441,10 @@ const TransportsList = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scheduled Dates
+                    {activeTab === 'in-transit' ? 'Days In Transit' : 'Scheduled Dates'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actual Dates
+                    {activeTab === 'in-transit' ? 'Est. Delivery' : 'Actual Dates'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -248,7 +455,12 @@ const TransportsList = () => {
                 {filteredTransports.map((transport) => (
                   <tr key={transport.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{transport.trackingNumber}</div>
+                      <Link 
+                        to={`/distributor/transports/${transport.id}`}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        {transport.trackingNumber}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -259,30 +471,45 @@ const TransportsList = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">
-                        <p><span className="font-medium">From:</span> {transport.source?.username || 'Unknown'}</p>
-                        <p><span className="font-medium">To:</span> {transport.destination?.username || 'Unknown'}</p>
+                        <p><span className="font-semibold">From:</span> {transport.source?.username || 'Unknown'}</p>
+                        <p><span className="font-semibold">To:</span> {transport.destination?.username || 'Unknown'}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(transport.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <p><span className="font-medium">Pickup:</span> {formatDate(transport.scheduledPickupDate)}</p>
-                        <p><span className="font-medium">Delivery:</span> {formatDate(transport.scheduledDeliveryDate)}</p>
-                      </div>
+                      {transport.status === 'In Transit' ? (
+                        <div className="text-sm font-semibold">
+                          {calculateDaysInTransit(transport.actualPickupDate)} days
+                          <div className="text-xs text-gray-500">
+                            Picked up: {formatDate(transport.actualPickupDate)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm">
+                          <p><span className="font-medium">Pickup:</span> {formatDate(transport.scheduledPickupDate)}</p>
+                          <p><span className="font-medium">Delivery:</span> {formatDate(transport.scheduledDeliveryDate)}</p>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <p>
-                          <span className="font-medium">Pickup:</span>{' '}
-                          {transport.actualPickupDate ? formatDate(transport.actualPickupDate) : 'Pending'}
-                        </p>
-                        <p>
-                          <span className="font-medium">Delivery:</span>{' '}
-                          {transport.actualDeliveryDate ? formatDate(transport.actualDeliveryDate) : 'Pending'}
-                        </p>
-                      </div>
+                      {transport.status === 'In Transit' ? (
+                        <div className="text-sm">
+                          {formatDate(transport.scheduledDeliveryDate)}
+                        </div>
+                      ) : (
+                        <div className="text-sm">
+                          <p>
+                            <span className="font-medium">Pickup:</span>{' '}
+                            {transport.actualPickupDate ? formatDate(transport.actualPickupDate) : 'Pending'}
+                          </p>
+                          <p>
+                            <span className="font-medium">Delivery:</span>{' '}
+                            {transport.actualDeliveryDate ? formatDate(transport.actualDeliveryDate) : 'Pending'}
+                          </p>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex space-x-2">
@@ -302,9 +529,12 @@ const TransportsList = () => {
                             Record Delivery
                           </button>
                         )}
-                        {transport.status === 'Delivered' && (
-                          <span className="text-gray-500 text-xs">Completed</span>
-                        )}
+                        <Link 
+                          to={`/distributor/transports/${transport.id}`} 
+                          className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-1 px-2 rounded"
+                        >
+                          View Details
+                        </Link>
                       </div>
                     </td>
                   </tr>

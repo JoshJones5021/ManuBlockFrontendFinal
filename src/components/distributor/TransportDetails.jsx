@@ -1,9 +1,8 @@
-// src/components/distributor/TransportDetails.jsx
+// src/components/distributor/TransportDetails.jsx - Updated without NavTabs
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { distributorService, blockchainService } from '../../services/api';
 import RecordTransportAction from './RecordTransportAction';
-import DistributorNavTabs from './DistributorNavTabs';
 
 const TransportDetails = () => {
   const { transportId } = useParams();
@@ -87,7 +86,6 @@ const TransportDetails = () => {
   if (loading) {
     return (
       <div className="p-6">
-        <DistributorNavTabs />
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
@@ -98,7 +96,6 @@ const TransportDetails = () => {
   if (error) {
     return (
       <div className="p-6">
-        <DistributorNavTabs />
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
           <strong className="font-bold">Error:</strong>
           <span className="block sm:inline"> {error}</span>
@@ -116,7 +113,6 @@ const TransportDetails = () => {
   if (!transport) {
     return (
       <div className="p-6">
-        <DistributorNavTabs />
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-6">
           Transport not found. It may have been deleted or you don't have permission to view it.
         </div>
@@ -132,8 +128,6 @@ const TransportDetails = () => {
 
   return (
     <div className="p-6">
-      <DistributorNavTabs />
-      
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Transport Details</h1>
         <button
@@ -143,7 +137,7 @@ const TransportDetails = () => {
           <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
           </svg>
-          Back to List
+          Back to Transports
         </button>
       </div>
       

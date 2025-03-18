@@ -1,8 +1,8 @@
+// src/components/distributor/MaterialPickupScheduler.jsx - Removed NavTabs dependency
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { distributorService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import DistributorNavTabs from './DistributorNavTabs';
 
 const MaterialPickupScheduler = () => {
   const { currentUser } = useAuth();
@@ -127,8 +127,18 @@ const MaterialPickupScheduler = () => {
 
   return (
     <div className="p-6">
-      <DistributorNavTabs />
-      <h1 className="text-2xl font-semibold mb-6">Schedule Material Pickup</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Schedule Material Pickup</h1>
+        <button
+          onClick={() => navigate('/distributor/transports')}
+          className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded flex items-center"
+        >
+          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Back to Transports
+        </button>
+      </div>
       
       {error && (
         <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">

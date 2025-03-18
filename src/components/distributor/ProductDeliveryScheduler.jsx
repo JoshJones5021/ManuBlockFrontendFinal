@@ -1,4 +1,4 @@
-// src/components/distributor/ProductDeliveryScheduler.jsx
+// src/components/distributor/ProductDeliveryScheduler.jsx - Removed NavTabs dependency
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { distributorService } from '../../services/api';
@@ -138,17 +138,20 @@ const ProductDeliveryScheduler = () => {
     return itemsText;
   };
 
-  if (loading && readyOrders.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-6">Schedule Product Delivery</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Schedule Product Delivery</h1>
+        <button
+          onClick={() => navigate('/distributor/transports')}
+          className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded flex items-center"
+        >
+          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Back to Transports
+        </button>
+      </div>
       
       {error && (
         <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -169,7 +172,11 @@ const ProductDeliveryScheduler = () => {
               <h2 className="text-lg font-medium text-gray-800">Ready for Delivery Orders</h2>
             </div>
             
-            {readyOrders.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : readyOrders.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-gray-500">No orders are ready for delivery at this time.</p>
               </div>

@@ -1,4 +1,4 @@
-// src/components/common/Sidebar.jsx - Updated with distributor routes
+// src/components/common/Sidebar.jsx - Updated with simplified distributor routes
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -78,8 +78,7 @@ const Sidebar = () => {
           ...items,
           { path: '/distributor/transports', label: 'All Transports', icon: '🚚' },
           { path: '/distributor/material-pickups/schedule', label: 'Schedule Pickups', icon: '📦' },
-          { path: '/distributor/product-deliveries/schedule', label: 'Schedule Deliveries', icon: '📬' },
-          { path: '/distributor/transport-management', label: 'Transport Management', icon: '🔄' }
+          { path: '/distributor/product-deliveries/schedule', label: 'Schedule Deliveries', icon: '📬' }
         ];
         
       case 'CUSTOMER':
