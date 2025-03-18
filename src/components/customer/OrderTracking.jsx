@@ -162,27 +162,40 @@ const OrderTracking = () => {
             </div>
             
             <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Order Timeline</h3>
-              <div className="relative">
-                <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-gray-200"></div>
-                <div className="space-y-6">
-                  {trackingResult.createdAt && (
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-1 rounded-full h-8 w-8 bg-blue-500 flex items-center justify-center">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="font-medium">Order Placed</h4>
-                        <p className="text-sm text-gray-500">{new Date(trackingResult.createdAt).toLocaleString()}</p>
-                      </div>
+            <h3 className="text-lg font-medium mb-3">Order Timeline</h3>
+                <div className="relative">
+                    <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-gray-200"></div>
+                    <div className="space-y-6">
+                    {trackingResult.statusHistory && trackingResult.statusHistory.length > 0 ? (
+                        trackingResult.statusHistory.map((event, index) => (
+                        <div key={index} className="relative pl-10">
+                            <div className="absolute left-0 top-1 rounded-full h-8 w-8 bg-blue-500 flex items-center justify-center">
+                            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            </div>
+                            <div>
+                            <h4 className="font-medium">{event.status}</h4>
+                            <p className="text-sm text-gray-500">{new Date(event.timestamp).toLocaleString()}</p>
+                            {event.notes && <p className="text-xs text-gray-600 mt-1">{event.notes}</p>}
+                            </div>
+                        </div>
+                        ))
+                    ) : (
+                        <div className="relative pl-10">
+                        <div className="absolute left-0 top-1 rounded-full h-8 w-8 bg-blue-500 flex items-center justify-center">
+                            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 className="font-medium">Order Placed</h4>
+                            <p className="text-sm text-gray-500">{new Date(trackingResult.createdAt).toLocaleString()}</p>
+                        </div>
+                        </div>
+                    )}
                     </div>
-                  )}
-                  
-                  {/* Add more timeline events based on order status */}
                 </div>
-              </div>
             </div>
             
             {trackingResult.items && trackingResult.items.length > 0 && (

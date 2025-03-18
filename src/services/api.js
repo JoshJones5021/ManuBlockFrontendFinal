@@ -21,6 +21,9 @@ const customerService = {
   getAvailableProducts: () => {
     return api.get('/customer/products/available');
   },
+  getProductsBySupplyChain: (supplyChainId) => {
+    return api.get(`/customer/products/supply-chain/${supplyChainId}`);
+  },
   getOrders: (customerId) => {
     return api.get(`/customer/orders/${customerId}`);
   },
@@ -35,6 +38,9 @@ const customerService = {
   },
   trackOrder: (orderNumber) => {
     return api.get(`/customer/orders/number/${orderNumber}`);
+  },
+  getOrderHistory: (orderId) => {
+    return api.get(`/customer/orders/${orderId}/history`);
   }
 };
 
@@ -73,9 +79,14 @@ const manufacturerService = {
     return api.get(`/manufacturer/products/${manufacturerId}`);
   },
   createProduct: (productData) => {
+    // Ensure supplyChainId is included in the request
+    if (!productData.supplyChainId) {
+      console.warn('Creating product without supply chain association');
+    }
     return api.post('/manufacturer/products', productData);
   },
   updateProduct: (productId, productData) => {
+    // Preserve supply chain association during updates
     return api.put(`/manufacturer/products/${productId}`, productData);
   },
   deactivateProduct: (productId) => {
@@ -130,6 +141,9 @@ const manufacturerService = {
   },
   fulfillOrderFromStock: (orderId, data) => {
     return api.post(`/manufacturer/orders/${orderId}/fulfill-from-stock`, data);
+  },
+  getProductsBySupplyChain: (manufacturerId, supplyChainId) => {
+    return api.get(`/manufacturer/products/${manufacturerId}/supply-chain/${supplyChainId}`);
   }
 };
 
@@ -224,44 +238,6 @@ const distributorService = {
     getSupplyChainPartners: (distributorId) => {
       return api.get(`/distributor/partners/${distributorId}`);
     },
-    
-    // Mock implementation for demonstration purposes - to be replaced with actual API call
-    // This would simulate fetching a specific transport
-    getMockTransportById: (transportId) => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            data: {
-              id: parseInt(transportId),
-              trackingNumber: `TRK-${100000 + parseInt(transportId)}`,
-              type: Math.random() > 0.5 ? 'Material Transport' : 'Product Delivery',
-              source: { id: 1, username: 'Acme Supplier' },
-              destination: { id: 2, username: 'XYZ Manufacturer' },
-              status: 'In Transit',
-              scheduledPickupDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              actualPickupDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              scheduledDeliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-              actualDeliveryDate: null,
-              blockchainItemId: Math.random() > 0.3 ? Math.floor(Math.random() * 1000000) : null,
-              materialRequest: {
-                requestNumber: `REQ-${5000 + parseInt(transportId)}`,
-                items: Array(Math.floor(Math.random() * 5) + 1).fill(0).map((_, i) => ({
-                  material: { name: `Material ${i+1}` },
-                  quantity: Math.floor(Math.random() * 50) + 10
-                }))
-              },
-              order: {
-                orderNumber: `ORD-${8000 + parseInt(transportId)}`,
-                items: Array(Math.floor(Math.random() * 3) + 1).fill(0).map((_, i) => ({
-                  product: { name: `Product ${i+1}` },
-                  quantity: Math.floor(Math.random() * 10) + 1
-                }))
-              }
-            }
-          });
-        }, 300);
-      });
-    }
   };
 
 // Supply Chain Services
@@ -297,6 +273,9 @@ const supplyChainService = {
   },
   getAssignedUsers: (id) => {
     return api.get(`/supply-chains/${id}/assigned-users`);
+  },
+  getProductsBySupplyChain: (supplyChainId) => {
+    return api.get(`/supply-chains/${supplyChainId}/products`);
   }
 };
 

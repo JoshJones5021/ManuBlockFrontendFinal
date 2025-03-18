@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { customerService, supplyChainService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const ProductCatalog = () => {
   const { currentUser } = useAuth();
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // Store all products for client-side filtering
+  const [displayProducts, setDisplayProducts] = useState([]); // Products to display after filtering
   const [supplyChains, setSupplyChains] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,9 +27,15 @@ const ProductCatalog = () => {
     fetchData();
   }, [currentUser.id]);
 
+  // Apply filters whenever products, selected chain, or search term changes
+  useEffect(() => {
+    applyFilters();
+  }, [allProducts, selectedChain, searchTerm]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Fetch products and supply chains in parallel
       const [productsResponse, chainsResponse] = await Promise.all([
@@ -36,20 +44,64 @@ const ProductCatalog = () => {
       ]);
       
       const productsData = Array.isArray(productsResponse?.data) ? productsResponse.data : [];
+      
+      // Make sure we're handling the response properly for supplyChains
       const chainsData = Array.isArray(chainsResponse) ? chainsResponse : [];
       
-      setProducts(productsData);
+      console.log('Products data:', productsData);
+      console.log('Supply chains data:', chainsData);
+      
+      // Store all products for filtering
+      setAllProducts(productsData);
+      // Initially display all products
+      setDisplayProducts(productsData);
+      
       setSupplyChains(chainsData.filter(chain => 
         chain.blockchainStatus === "FINALIZED" || chain.blockchainStatus === "CONFIRMED"
       ));
       
-      setError(null);
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.error('Error fetching data:', err);
       setError('Failed to load products. Please try again later.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Client-side filtering function
+  const applyFilters = () => {
+    // Start with all products
+    let filtered = [...allProducts];
+    
+    // Apply supply chain filter if a specific chain is selected
+    if (selectedChain !== 'all') {
+      filtered = filtered.filter(product => {
+        // In case supplyChainId is not yet available on all products
+        if (!product.supplyChainId) {
+          // If names match, consider it part of the chain (temporary solution)
+          const chain = supplyChains.find(c => c.id === parseInt(selectedChain));
+          if (chain) {
+            return product.name.toLowerCase().includes(chain.name.toLowerCase()) ||
+                   chain.name.toLowerCase().includes(product.name.toLowerCase());
+          }
+          return false;
+        }
+        
+        // Direct ID comparison
+        return product.supplyChainId === parseInt(selectedChain);
+      });
+    }
+    
+    // Apply search term filter
+    if (searchTerm) {
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    
+    // Update display products
+    setDisplayProducts(filtered);
   };
 
   const handleOrderClick = (product) => {
@@ -123,12 +175,11 @@ const ProductCatalog = () => {
     }
   };
 
-  const filteredProducts = products.filter(product => {
-    const matchesChain = selectedChain === 'all' || product.supplyChainId === parseInt(selectedChain);
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesChain && matchesSearch;
-  });
+  // Find the name of a supply chain by its ID
+  const getSupplyChainName = (chainId) => {
+    const chain = supplyChains.find(c => c.id === chainId);
+    return chain ? chain.name : `Chain ID: ${chainId}`;
+  };
 
   const OrderModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -300,16 +351,24 @@ const ProductCatalog = () => {
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
-      ) : filteredProducts.length === 0 ? (
+      ) : displayProducts.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
           <svg className="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12.01a4 4 0 110-8 4 4 0 010 8z" />
           </svg>
           <p className="text-gray-500">No products found matching your criteria.</p>
+          {selectedChain !== 'all' && (
+            <button 
+              onClick={() => setSelectedChain('all')}
+              className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+            >
+              Show All Products
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
+          {displayProducts.map((product) => (
             <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
               <div className="bg-gray-100 h-48 flex items-center justify-center">
                 <svg className="h-24 w-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -333,6 +392,13 @@ const ProductCatalog = () => {
                       <p className="text-gray-900">{product.sku}</p>
                     </div>
                   </div>
+                  
+                  {product.supplyChainId && (
+                    <div className="mb-4 text-sm">
+                      <span className="text-gray-500">Supply Chain: </span>
+                      <span className="text-gray-900">{getSupplyChainName(product.supplyChainId)}</span>
+                    </div>
+                  )}
                   
                   {product.blockchainItemId && (
                     <div className="flex items-center mb-4 text-sm">
