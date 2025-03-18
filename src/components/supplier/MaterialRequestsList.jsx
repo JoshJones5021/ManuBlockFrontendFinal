@@ -143,7 +143,7 @@ const MaterialRequestsList = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {['pending', 'approved', 'allocated', 'completed', 'all'].map((tab) => (
+            {['pending', 'approved', 'allocated', 'completed'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}

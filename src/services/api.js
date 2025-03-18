@@ -144,6 +144,9 @@ const manufacturerService = {
   },
   getProductsBySupplyChain: (manufacturerId, supplyChainId) => {
     return api.get(`/manufacturer/products/${manufacturerId}/supply-chain/${supplyChainId}`);
+  },
+  getMaterialRequestById: (requestId) => {
+    return api.get(`/manufacturer/materials/request/${requestId}`);
   }
 };
 

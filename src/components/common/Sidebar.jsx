@@ -53,8 +53,7 @@ const Sidebar = () => {
         return [
           ...items,
           { path: '/users', label: 'User Management', icon: '👥' },
-          { path: '/supply-chains', label: 'Supply Chains', icon: '🔗' },
-          { path: '/blockchain-status', label: 'Blockchain Status', icon: '🔷' }
+          { path: '/supply-chains', label: 'Supply Chains', icon: '🔗' }
         ];
         
       case 'SUPPLIER':

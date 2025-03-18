@@ -10,9 +10,6 @@ const Footer = () => {
           <p>&copy; {currentYear} ManuBlock - Supply Chain Management with Blockchain</p>
         </div>
         <div className="flex space-x-4">
-          <a href="#" className="hover:text-blue-400">Terms</a>
-          <a href="#" className="hover:text-blue-400">Privacy</a>
-          <a href="#" className="hover:text-blue-400">Documentation</a>
         </div>
       </div>
     </footer>

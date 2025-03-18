@@ -1,7 +1,6 @@
-// src/components/manufacturer/MaterialRequestDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { manufacturerService, blockchainService } from '../../services/api';
+import { manufacturerService, blockchainService, supplierService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const MaterialRequestDetails = () => {
@@ -9,6 +8,7 @@ const MaterialRequestDetails = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [materialRequest, setMaterialRequest] = useState(null);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [blockchainStatus, setBlockchainStatus] = useState({
@@ -18,30 +18,39 @@ const MaterialRequestDetails = () => {
   });
 
   useEffect(() => {
-    fetchMaterialRequest();
-  }, [requestId]);
-
-  const fetchMaterialRequest = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch material request details
-      const response = await manufacturerService.getMaterialRequestById(requestId);
-      setMaterialRequest(response.data);
-      
-      // If there's a blockchain transaction hash, check its status
-      if (response.data.blockchainTxHash) {
-        fetchBlockchainInfo(response.data.blockchainTxHash);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch both material request and suppliers in parallel
+        const [requestResponse, suppliersResponse] = await Promise.all([
+          manufacturerService.getMaterialRequestById(requestId),
+          supplierService.getAllSuppliers()
+        ]);
+        
+        setMaterialRequest(requestResponse.data);
+        setSuppliers(suppliersResponse.data);
+        
+        // If there's a blockchain transaction hash, check its status
+        if (requestResponse.data.blockchainTxHash) {
+          fetchBlockchainInfo(requestResponse.data.blockchainTxHash);
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching material request:', err);
+        console.error('Error response:', err.response);
+        console.error('Error message:', err.message);
+        console.error('Error status:', err.response?.status);
+        console.error('Error data:', err.response?.data);
+        setError(err.response?.data?.message || 'Failed to load material request details. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching material request:', err);
-      setError('Failed to load material request details. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchData();
+  }, [requestId]);
 
   const fetchBlockchainInfo = async (txHash) => {
     try {
@@ -140,6 +149,9 @@ const MaterialRequestDetails = () => {
     );
   }
 
+  // Find the supplier for this request
+  const supplier = suppliers.find(s => s.id === materialRequest.supplierId);
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -170,7 +182,9 @@ const MaterialRequestDetails = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Supplier</h3>
-              <p className="text-base">{materialRequest.supplier?.username || 'Unknown Supplier'}</p>
+              <p className="text-base">
+                {supplier ? supplier.username : 'Unknown Supplier'}
+              </p>
             </div>
             
             <div>
@@ -321,7 +335,7 @@ const MaterialRequestDetails = () => {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Block Number</h3>
                   <p className="text-base">{blockchainStatus.data.blockNumber}</p>
-                </div>
+                  </div>
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Timestamp</h3>
@@ -360,3 +374,4 @@ const MaterialRequestDetails = () => {
 };
 
 export default MaterialRequestDetails;
+                 
