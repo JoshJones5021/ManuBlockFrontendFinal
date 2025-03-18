@@ -125,6 +125,9 @@ const manufacturerService = {
   startOrderProduction: (orderId) => {
     return api.post(`/manufacturer/orders/${orderId}/start-production`);
   },
+  getAvailableMaterialsWithBlockchainIds: (manufacturerId) => {
+    return api.get(`/manufacturer/materials/available-blockchain/${manufacturerId}`);
+  },
 };
 
 // Distributor Services

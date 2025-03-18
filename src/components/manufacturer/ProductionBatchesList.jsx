@@ -54,6 +54,8 @@ const ProductionBatchesList = () => {
         supplyChainService.getSupplyChainsByUser(currentUser.id)
       ]);
       
+      console.log("Products response:", productsResponse.data);
+      
       // Add defensive coding
       const batchesData = Array.isArray(batchesResponse.data) ? batchesResponse.data : [];
       const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : [];
@@ -102,16 +104,12 @@ const ProductionBatchesList = () => {
 
   const fetchMaterialsWithBlockchainIds = async (manufacturerId) => {
     try {
-      // Use the existing endpoint for available materials
-      const response = await manufacturerService.getAvailableMaterials(manufacturerId);
+      // Use the endpoint for blockchain materials
+      const response = await manufacturerService.getAvailableMaterialsWithBlockchainIds(manufacturerId);
       
       if (response && response.data) {
-        // Filter for materials that have blockchain IDs assigned
-        const materialsWithIds = response.data.filter(material => 
-          material.blockchainItemId !== null && material.blockchainItemId !== undefined
-        );
-        
-        setMaterialInventory(materialsWithIds);
+        setMaterialInventory(response.data);
+        console.log("Available materials:", response.data);
       }
     } catch (err) {
       console.error('Error fetching materials with blockchain IDs:', err);
@@ -150,6 +148,8 @@ const ProductionBatchesList = () => {
     // For now, we'll assume all products are available in all supply chains
     // and just filter for active products
     const chainProducts = allProducts.filter(product => product.active);
+    
+    console.log("Filtered products:", chainProducts);
     
     setFilteredProducts(chainProducts);
     
@@ -248,9 +248,35 @@ const ProductionBatchesList = () => {
     }
     
     // Make sure we have the latest material inventory before showing the modal
-    fetchMaterialsWithBlockchainIds(currentUser.id);
-    
-    setShowCreateModal(true);
+    fetchMaterialsWithBlockchainIds(currentUser.id)
+      .then(() => {
+        // After fetching data, load materials for the initial product
+        if (initialProductId) {
+          const selectedProduct = products.find(p => p.id === parseInt(initialProductId));
+          console.log("Initial product selection:", selectedProduct);
+          
+          if (selectedProduct && selectedProduct.materials && selectedProduct.materials.length > 0) {
+            console.log("Initial product materials:", selectedProduct.materials);
+            
+            // Initialize materials for batch creation
+            const initialMaterials = selectedProduct.materials.map(material => ({
+              materialId: material.materialId,
+              blockchainItemId: null,
+              quantity: material.quantity
+            }));
+            
+            setFormData(prevState => ({
+              ...prevState,
+              materials: initialMaterials
+            }));
+            
+            // Store the materials for reference in the form
+            setMaterials(selectedProduct.materials);
+          }
+        }
+        
+        setShowCreateModal(true);
+      });
   };
 
   const handleCompleteBatch = (batch) => {
@@ -280,24 +306,41 @@ const ProductionBatchesList = () => {
     
     // If product changes, reload required materials with their blockchain IDs
     if (name === 'productId') {
+      console.log("Product changed to:", value);
       const selectedProduct = filteredProducts.find(p => p.id === parseInt(value));
-      if (selectedProduct && selectedProduct.requiredMaterials) {
-        // Initialize materials for batch creation
-        const initialMaterials = selectedProduct.requiredMaterials.map(material => ({
-          materialId: material.id,
-          blockchainItemId: material.blockchainItemId, // Use the blockchain ID from the material directly
-          quantity: 0 // Default quantity
+      console.log("Selected product:", selectedProduct);
+      
+      // Check for materials array
+      if (selectedProduct && selectedProduct.materials && selectedProduct.materials.length > 0) {
+        console.log("Product materials:", selectedProduct.materials);
+        
+        // Initialize materials for batch creation using the materials array
+        const initialMaterials = selectedProduct.materials.map(material => ({
+          materialId: material.materialId,
+          blockchainItemId: null, // Will be selected by user
+          quantity: material.quantity // Set the required quantity as default
         }));
+        
+        console.log("Setting initial materials:", initialMaterials);
         
         setFormData(prevState => ({
           ...prevState,
           materials: initialMaterials
         }));
         
-        setMaterials(selectedProduct.requiredMaterials);
+        // Store the materials for reference in the form
+        setMaterials(selectedProduct.materials);
         
         // Filter orders for this specific product
         filterOrdersByProduct(value);
+      } else {
+        console.log("No materials found for this product");
+        // No materials for this product
+        setFormData(prevState => ({
+          ...prevState,
+          materials: []
+        }));
+        setMaterials([]);
       }
     }
   };
@@ -390,7 +433,8 @@ const ProductionBatchesList = () => {
         return;
       }
       
-      await manufacturerService.completeProductionBatch(selectedBatch.id, { quality: qualityData });
+      // Pass qualityData directly, not wrapped in an object
+      await manufacturerService.completeProductionBatch(selectedBatch.id, qualityData);
       setShowCompleteModal(false);
       setSuccessMessage('Production batch completed successfully!');
       setShowSuccessAlert(true);
@@ -431,195 +475,250 @@ const ProductionBatchesList = () => {
     }
   };
   
-  // Create Batch Modal
-  const CreateBatchModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Create Production Batch</h2>
-          <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <form onSubmit={handleCreateSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
-              Supply Chain <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="supplyChainId"
-              name="supplyChainId"
-              value={formData.supplyChainId}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-            >
-              <option value="">Select a supply chain</option>
-              {supplyChains.map((chain) => (
-                <option key={chain.id} value={chain.id}>
-                  {chain.name} ({chain.blockchainStatus})
-                </option>
-              ))}
-            </select>
-            {supplyChains.length === 0 && (
-              <p className="text-red-500 text-xs italic mt-1">
-                No finalized supply chains available. Please contact an administrator.
-              </p>
-            )}
+  // Create Batch Modal with improved material handling
+  const CreateBatchModal = () => {
+    // Helper function to calculate total material needed
+    const calculateTotalMaterialNeeded = (materialQuantity, productQuantity) => {
+      const qty = parseInt(productQuantity) || 0;
+      return materialQuantity * qty;
+    };
+    
+    console.log("Form data in modal:", formData);
+    console.log("Form materials:", formData.materials);
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">Create Production Batch</h2>
+            <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-700">
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           </div>
           
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="productId">
-              Product <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="productId"
-              name="productId"
-              value={formData.productId}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-              disabled={filteredProducts.length === 0}
-            >
-              <option value="">Select a product</option>
-              {filteredProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name} (SKU: {product.sku})
-                </option>
-              ))}
-            </select>
-            {filteredProducts.length === 0 && (
-              <p className="text-red-500 text-xs italic mt-1">
-                No products available. Please create products first.
-              </p>
-            )}
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="quantity">
-              Quantity to Produce <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              id="quantity"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              min="1"
-              required
-              disabled={!formData.productId}
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="orderId">
-              Related Order (Optional)
-            </label>
-            <select
-              id="orderId"
-              name="orderId"
-              value={formData.orderId || ''}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            >
-              <option value="">No related order</option>
-              {filteredOrders.map((order) => (
-                <option key={order.id} value={order.id}>
-                  Order #{order.orderNumber} - {order.customerName}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-gray-700 text-sm font-bold">
-                Required Materials <span className="text-red-500">*</span>
+          <form onSubmit={handleCreateSubmit}>
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
+                Supply Chain <span className="text-red-500">*</span>
               </label>
+              <select
+                id="supplyChainId"
+                name="supplyChainId"
+                value={formData.supplyChainId}
+                onChange={handleInputChange}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              >
+                <option value="">Select a supply chain</option>
+                {supplyChains.map((chain) => (
+                  <option key={chain.id} value={chain.id}>
+                    {chain.name} ({chain.blockchainStatus})
+                  </option>
+                ))}
+              </select>
+              {supplyChains.length === 0 && (
+                <p className="text-red-500 text-xs italic mt-1">
+                  No finalized supply chains available. Please contact an administrator.
+                </p>
+              )}
             </div>
             
-            {formData.materials.length > 0 ? (
-              <div className="space-y-4 border rounded p-4">
-                {formData.materials.map((material, index) => {
-                  const materialInfo = materials.find(m => m.id === parseInt(material.materialId));
-                  
-                  return (
-                    <div key={index} className="p-3 bg-gray-50 rounded">
-                      <div className="font-medium mb-2">{materialInfo?.name || 'Material'}</div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <div>
-                            <label className="block text-gray-700 text-xs mb-1">
-                            Material Blockchain ID <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                            value={material.blockchainItemId || ''}
-                            onChange={(e) => handleMaterialChange(index, 'blockchainItemId', e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            required
-                            >
-                            <option value="">Select a material batch</option>
-                            {materialInventory
-                                .filter(invMaterial => invMaterial.id === material.materialId)
-                                .map((invMaterial) => (
-                                <option key={invMaterial.blockchainItemId} value={invMaterial.blockchainItemId}>
-                                    {invMaterial.name} - Batch ID: {invMaterial.blockchainItemId} - Available: {invMaterial.quantity} {invMaterial.unit}
-                                </option>
-                                ))}
-                            {!materialInventory.some(m => m.id === material.materialId) && (
-                                <option disabled>No batches available for this material</option>
-                            )}
-                            </select>
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="productId">
+                Product <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="productId"
+                name="productId"
+                value={formData.productId}
+                onChange={handleInputChange}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+                disabled={filteredProducts.length === 0}
+              >
+                <option value="">Select a product</option>
+                {filteredProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} (SKU: {product.sku})
+                  </option>
+                ))}
+              </select>
+              {filteredProducts.length === 0 && (
+                <p className="text-red-500 text-xs italic mt-1">
+                  No products available. Please create products first.
+                </p>
+              )}
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="quantity">
+                Quantity to Produce <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                id="quantity"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleInputChange}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                min="1"
+                required
+                disabled={!formData.productId}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="orderId">
+                Related Order (Optional)
+              </label>
+              <select
+                id="orderId"
+                name="orderId"
+                value={formData.orderId || ''}
+                onChange={handleInputChange}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              >
+                <option value="">No related order</option>
+                {filteredOrders.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    Order #{order.orderNumber} - {order.customerName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-gray-700 text-sm font-bold">
+                  Required Materials <span className="text-red-500">*</span>
+                </label>
+              </div>
+              
+              {formData.materials && formData.materials.length > 0 ? (
+                <div className="space-y-4 border rounded p-4">
+                  {formData.materials.map((material, index) => {
+                    const materialInfo = materials.find(m => m.materialId === parseInt(material.materialId));
+                    const materialQuantity = materialInfo?.quantity || 0;
+                    const totalRequired = calculateTotalMaterialNeeded(materialQuantity, formData.quantity);
+                    
+                    return (
+                      <div key={index} className="p-3 bg-gray-50 rounded">
+                        <div className="font-medium mb-2">
+                          {materialInfo?.materialName || 'Material'} 
+                          <span className="ml-2 text-sm text-gray-600">
+                            (Required: {materialQuantity} {materialInfo?.unit || 'units'} per product)
+                          </span>
                         </div>
                         
-                        <div>
-                            <label className="block text-gray-700 text-xs mb-1">
-                            Quantity <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                            type="number"
-                            value={material.quantity || ''}
-                            onChange={(e) => handleMaterialChange(index, 'quantity', e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            min="1"
-                            max={materialInventory.find(m => m.id === material.materialId && m.blockchainItemId === material.blockchainItemId)?.quantity || 9999}
-                            required
-                            />
+                        <div className="text-sm text-blue-600 mb-3">
+                          Total needed: {totalRequired} {materialInfo?.unit || 'units'} for {formData.quantity || 0} product(s)
                         </div>
-                    </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm italic">No materials required for this product.</p>
-            )}
-          </div>
-          
-          <div className="flex justify-end mt-6">
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(false)}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              disabled={!formData.supplyChainId || !formData.productId || !formData.quantity || formData.materials.length === 0}
-            >
-              Create Batch
-            </button>
-          </div>
-        </form>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-2">
+                          <div>
+                            <label className="block text-gray-700 text-xs mb-1">
+                              Select Material Batch <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={material.blockchainItemId || ''}
+                                onChange={(e) => {
+                                    // When a batch is selected, automatically set the quantity to the total required
+                                    const newBlockchainItemId = e.target.value;
+                                    handleMaterialChange(index, 'blockchainItemId', newBlockchainItemId);
+                                    
+                                    // Auto-set the quantity field to the total required
+                                    handleMaterialChange(index, 'quantity', totalRequired.toString());
+                                }}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                required
+                                >
+                                <option value="">Select a material batch</option>
+                                {materialInventory
+                                    // Filter to only show materials with the correct ID AND item_type="allocated-material"
+                                    .filter(invMaterial => 
+                                    invMaterial.id === material.materialId && 
+                                    invMaterial.itemType === "allocated-material"
+                                    )
+                                    .map((invMaterial) => (
+                                    <option 
+                                        key={invMaterial.blockchainItemId} 
+                                        value={invMaterial.blockchainItemId}
+                                        disabled={invMaterial.quantity < totalRequired}
+                                    >
+                                        {invMaterial.name} - Batch ID: {invMaterial.blockchainItemId} - Available: {invMaterial.quantity} {invMaterial.unit} 
+                                        {invMaterial.quantity < totalRequired ? ' (Insufficient quantity)' : ''}
+                                    </option>
+                                    ))}
+                                {!materialInventory.some(m => 
+                                    m.id === material.materialId && 
+                                    m.itemType === "allocated-material"
+                                ) && (
+                                    <option disabled>No allocated material batches available</option>
+                                )}
+                            </select>
+                            {/* Show a warning if no material batches have enough quantity */}
+                            {materialInventory.some(m => m.id === material.materialId) && 
+                            !materialInventory.some(m => m.id === material.materialId && m.quantity >= totalRequired) && (
+                              <p className="text-red-500 text-xs italic mt-1">
+                                Warning: None of your material batches have sufficient quantity. Request more materials from suppliers.
+                              </p>
+                            )}
+                          </div>
+                          
+                          {/* Hidden input for quantity - we'll set this automatically */}
+                          <input
+                            type="hidden"
+                            value={totalRequired}
+                            name={`materials[${index}].quantity`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm italic">No materials required for this product.</p>
+              )}
+            </div>
+            
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                disabled={
+                  !formData.supplyChainId || 
+                  !formData.productId || 
+                  !formData.quantity || 
+                  formData.quantity <= 0 || 
+                  formData.materials.length === 0 ||
+                  // Disable if any material doesn't have a blockchain ID selected
+                  formData.materials.some(m => !m.blockchainItemId) ||
+                  // Disable if any selected material batch doesn't have enough quantity
+                  formData.materials.some(m => {
+                    const materialInfo = materials.find(info => info.materialId === parseInt(m.materialId));
+                    const totalRequired = calculateTotalMaterialNeeded(materialInfo?.quantity || 0, formData.quantity);
+                    const selectedBatch = materialInventory.find(inv => inv.blockchainItemId === m.blockchainItemId);
+                    return selectedBatch && selectedBatch.quantity < totalRequired;
+                  })
+                }
+              >
+                Create Batch
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
   
   // Complete Batch Modal
   const CompleteBatchModal = () => (

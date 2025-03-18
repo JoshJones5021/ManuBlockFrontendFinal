@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { manufacturerService, supplierService, supplyChainService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import CreateProductModal from './CreateProductModal';
+import EditProductModal from './EditProductModal';
 
 const ProductsList = () => {
   const { currentUser } = useAuth();
@@ -19,7 +21,7 @@ const ProductsList = () => {
     sku: '',
     price: '',
     supplyChainId: '',
-    requiredMaterialIds: []
+    requiredMaterials: []
   });
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -31,58 +33,85 @@ const ProductsList = () => {
   }, [currentUser.id]);
 
   const fetchData = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
+    
+    // Fetch all required data in parallel
+    const [
+      productsResponse, 
+      supplyChainResponse
+    ] = await Promise.all([
+      manufacturerService.getProducts(currentUser.id),
+      supplyChainService.getSupplyChainsByUser(currentUser.id)
+    ]);
+    
+    // Add defensive coding
+    const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : [];
+    const supplyChainData = Array.isArray(supplyChainResponse) ? supplyChainResponse : [];
+    
+    // Filter only finalized supply chains
+    const finalizedChains = supplyChainData.filter(chain => 
+      chain.blockchainStatus === "FINALIZED" || chain.blockchainStatus === "CONFIRMED"
+    );
+    
+    setProducts(productsData);
+    setSupplyChains(finalizedChains);
+    
+    // Initialize supply chain selection if possible
+    if (finalizedChains.length > 0) {
+      // Update form with first available supply chain
+      const initialSupplyChainId = finalizedChains[0].id;
+      setFormData(prev => ({
+        ...prev,
+        supplyChainId: initialSupplyChainId
+      }));
       
-      // Fetch all required data in parallel
-      const [
-        productsResponse, 
-        materialsResponse, 
-        supplyChainResponse
-      ] = await Promise.all([
-        manufacturerService.getProducts(currentUser.id),
-        manufacturerService.getAvailableMaterials(currentUser.id),
-        supplyChainService.getSupplyChainsByUser(currentUser.id)
-      ]);
-      
-      // Add defensive coding
-      const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : [];
-      const materialsData = Array.isArray(materialsResponse.data) ? materialsResponse.data : [];
-      const supplyChainData = Array.isArray(supplyChainResponse) ? supplyChainResponse : [];
-      
-      // Filter only finalized supply chains
-      const finalizedChains = supplyChainData.filter(chain => 
-        chain.blockchainStatus === "FINALIZED" || chain.blockchainStatus === "CONFIRMED"
-      );
-      
-      setProducts(productsData);
-      setAvailableMaterials(materialsData);
-      setSupplyChains(finalizedChains);
-      
-      // Initialize supply chain selection if possible
-      if (finalizedChains.length > 0) {
-        // Update form with first available supply chain
-        setFormData(prev => ({
-          ...prev,
-          supplyChainId: finalizedChains[0].id
-        }));
-        
-        // Filter materials based on first supply chain
-        filterMaterialsByChain(materialsData, finalizedChains[0].id);
-      } else {
-        setFilteredMaterials([]);
-      }
-      
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Failed to load products. Please try again later.');
-    } finally {
-      setLoading(false);
+      // Fetch materials for the first supply chain
+      await fetchMaterialsBySupplyChain(initialSupplyChainId);
+    } else {
+      setFilteredMaterials([]);
     }
-  };
+    
+    setError(null);
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    setError('Failed to load products. Please try again later.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const fetchMaterialsBySupplyChain = async (supplyChainId) => {
+  try {
+    const supplyChainResponse = await supplyChainService.getSupplyChainById(supplyChainId);
+    const supplyChainData = supplyChainResponse.data;
+    
+    const supplierNodes = supplyChainData.nodes.filter(
+      node => node.role.toLowerCase() === 'supplier' && node.assignedUserId
+    );
+    
+    const supplierUserIds = supplierNodes.map(node => node.assignedUserId);
+    
+    const materialsPromises = supplierUserIds.map(supplierId => 
+      supplierService.getMaterials(supplierId)
+    );
+    
+    const materialsResponses = await Promise.all(materialsPromises);
+    const materialsData = materialsResponses.flatMap(response => response.data);
+    
+    setAvailableMaterials(materialsData);
+    filterMaterialsByChain(materialsData, supplyChainId);
+  } catch (err) {
+    console.error('Error fetching materials:', err);
+    setAvailableMaterials([]);
+    setFilteredMaterials([]);
+  }
+};
   
-  const filterMaterialsByChain = (allMaterials, chainId) => {
+const filterMaterialsByChain = (allMaterials, chainId) => {
+    console.log("All materials:", allMaterials);
+    console.log("Chain ID:", chainId);
+    
     // Find the selected chain
     const selectedChain = supplyChains.find(chain => chain.id === parseInt(chainId));
     
@@ -99,11 +128,30 @@ const ProductsList = () => {
     // Get the assigned user IDs from supplier nodes
     const supplierUserIds = supplierNodes.map(node => node.assignedUserId);
     
-    // Filter materials from suppliers in this chain
-    const chainMaterials = allMaterials.filter(
-      material => material.active && supplierUserIds.includes(material.supplier.id)
-    );
+    console.log("Supplier User IDs:", supplierUserIds);
     
+    // Filter materials from suppliers in this chain - with more flexible matching
+    const chainMaterials = allMaterials.filter(material => {
+      // Log each material for debugging
+      console.log("Checking material:", material);
+      
+      // Check if material is active (if this property exists)
+      const isActive = material.active !== false; // Consider active if not explicitly false
+      
+      // Get supplier ID (handle different data structures)
+      const supplierId = material.supplier?.id || material.supplierId;
+      
+      // Try more flexible comparison (convert both to strings for comparison)
+      const supplierMatches = supplierUserIds.some(id => 
+        String(supplierId) === String(id)
+      );
+      
+      console.log(`Material ${material.name || 'unknown'}: active=${isActive}, supplierId=${supplierId}, supplierMatches=${supplierMatches}`);
+      
+      return isActive && supplierMatches;
+    });
+    
+    console.log("Filtered materials:", chainMaterials);
     setFilteredMaterials(chainMaterials);
   };
 
@@ -118,7 +166,7 @@ const ProductsList = () => {
       sku: '',
       price: '',
       supplyChainId: initialSupplyChainId,
-      requiredMaterialIds: []
+      requiredMaterials: []
     });
     
     // Initial filter of materials
@@ -129,12 +177,14 @@ const ProductsList = () => {
     setShowCreateModal(true);
   };
 
+  const handleSupplyChainChange = (supplyChainId) => {
+    filterMaterialsByChain(availableMaterials, supplyChainId);
+  };
+
   const handleEditProduct = (product) => {
     setSelectedProduct(product);
     
     // Determine which supply chain this product belongs to
-    // In a real application, you would have this information in the product object
-    // Here we'll just use the first available chain
     const initialSupplyChainId = supplyChains.length > 0 ? supplyChains[0].id : '';
     
     setFormData({
@@ -144,7 +194,12 @@ const ProductsList = () => {
       sku: product.sku,
       price: product.price.toString(),
       supplyChainId: initialSupplyChainId,
-      requiredMaterialIds: product.requiredMaterials ? product.requiredMaterials.map(material => material.id) : []
+      requiredMaterials: product.requiredMaterials ? product.requiredMaterials.map(material => ({
+        id: material.id,
+        name: material.name,
+        quantity: material.quantity,
+        unit: material.unit
+      })) : []
     });
     
     // Filter materials for the selected chain
@@ -168,48 +223,68 @@ const ProductsList = () => {
     }
   };
 
-  const handleMaterialChange = (e) => {
-    const materialId = parseInt(e.target.value);
+  const handleMaterialChange = (material, checked) => {
     let newSelectedMaterials;
     
-    if (e.target.checked) {
-      // Add material ID to the list
-      newSelectedMaterials = [...formData.requiredMaterialIds, materialId];
+    if (checked) {
+      // Add material with default quantity of 1
+      newSelectedMaterials = [...formData.requiredMaterials, { 
+        id: material.id, 
+        name: material.name, 
+        quantity: 1,
+        unit: material.unit 
+      }];
     } else {
-      // Remove material ID from the list
-      newSelectedMaterials = formData.requiredMaterialIds.filter(id => id !== materialId);
+      // Remove material from the list
+      newSelectedMaterials = formData.requiredMaterials.filter(m => m.id !== material.id);
     }
     
     setFormData({
       ...formData,
-      requiredMaterialIds: newSelectedMaterials
+      requiredMaterials: newSelectedMaterials
     });
   };
 
-  const handleCreateSubmit = async (e) => {
+  const handleMaterialQuantityChange = (materialId, quantity) => {
+    const newSelectedMaterials = formData.requiredMaterials.map(material => 
+      material.id === materialId 
+        ? { ...material, quantity: Math.max(0, parseFloat(quantity) || 0) }
+        : material
+    );
+    
+    setFormData({
+      ...formData,
+      requiredMaterials: newSelectedMaterials
+    });
+  };
+
+  const handleCreateSubmit = async (e, updatedFormData) => {
     e.preventDefault();
     
     try {
       // Validate inputs
-      if (!formData.name || !formData.description || !formData.sku || !formData.price) {
+      if (!updatedFormData.name || !updatedFormData.description || !updatedFormData.sku || !updatedFormData.price) {
         setError('Please fill in all required fields.');
         return;
       }
       
-      if (!formData.supplyChainId) {
+      if (!updatedFormData.supplyChainId) {
         setError('Please select a supply chain.');
         return;
       }
       
       const productData = {
-        name: formData.name,
-        description: formData.description,
-        specifications: formData.specifications,
-        sku: formData.sku,
-        price: parseFloat(formData.price),
+        name: updatedFormData.name,
+        description: updatedFormData.description,
+        specifications: updatedFormData.specifications,
+        sku: updatedFormData.sku,
+        price: parseFloat(updatedFormData.price),
         manufacturerId: currentUser.id,
-        supplyChainId: parseInt(formData.supplyChainId),
-        requiredMaterialIds: formData.requiredMaterialIds
+        supplyChainId: parseInt(updatedFormData.supplyChainId),
+        requiredMaterials: updatedFormData.requiredMaterials.map(material => ({
+          materialId: material.id,
+          quantity: material.quantity
+        }))
       };
       
       await manufacturerService.createProduct(productData);
@@ -228,23 +303,26 @@ const ProductsList = () => {
     }
   };
 
-  const handleEditSubmit = async (e) => {
+  const handleEditSubmit = async (e, updatedFormData) => {
     e.preventDefault();
     
     try {
       // Validate inputs
-      if (!formData.name || !formData.description || !formData.sku || !formData.price) {
+      if (!updatedFormData.name || !updatedFormData.description || !updatedFormData.sku || !updatedFormData.price) {
         setError('Please fill in all required fields.');
         return;
       }
       
       const productData = {
-        name: formData.name,
-        description: formData.description,
-        specifications: formData.specifications,
-        sku: formData.sku,
-        price: parseFloat(formData.price),
-        requiredMaterialIds: formData.requiredMaterialIds
+        name: updatedFormData.name,
+        description: updatedFormData.description,
+        specifications: updatedFormData.specifications,
+        sku: updatedFormData.sku,
+        price: parseFloat(updatedFormData.price),
+        requiredMaterials: updatedFormData.requiredMaterials.map(material => ({
+          materialId: material.id,
+          quantity: material.quantity
+        }))
       };
       
       await manufacturerService.updateProduct(selectedProduct.id, productData);
@@ -281,315 +359,6 @@ const ProductsList = () => {
       }
     }
   };
-
-  // Create Modal Component
-  const CreateProductModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Create New Product</h2>
-          <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <form onSubmit={handleCreateSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
-              Supply Chain <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="supplyChainId"
-              name="supplyChainId"
-              value={formData.supplyChainId}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-            >
-              <option value="">Select a supply chain</option>
-              {supplyChains.map((chain) => (
-                <option key={chain.id} value={chain.id}>
-                  {chain.name} ({chain.blockchainStatus})
-                </option>
-              ))}
-            </select>
-            {supplyChains.length === 0 && (
-              <p className="text-red-500 text-xs italic mt-1">
-                No finalized supply chains available. Please contact an administrator.
-              </p>
-            )}
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
-              Product Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
-              Description <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              rows="3"
-              required
-            ></textarea>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="specifications">
-              Specifications
-            </label>
-            <textarea
-              id="specifications"
-              name="specifications"
-              value={formData.specifications}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              rows="3"
-            ></textarea>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="sku">
-                SKU <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="sku"
-                name="sku"
-                value={formData.sku}
-                onChange={handleInputChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="price">
-                Price <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                id="price"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Required Materials
-            </label>
-            {filteredMaterials.length > 0 ? (
-              <div className="max-h-60 overflow-y-auto p-2 border rounded">
-                {filteredMaterials.map((material) => (
-                  <div key={material.id} className="flex items-center mb-2">
-                    <input
-                      type="checkbox"
-                      id={`material-${material.id}`}
-                      value={material.id}
-                      checked={formData.requiredMaterialIds.includes(material.id)}
-                      onChange={handleMaterialChange}
-                      className="mr-2"
-                    />
-                    <label htmlFor={`material-${material.id}`} className="text-sm">
-                      {material.name} ({material.unit}) - {material.supplier.username}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">
-                {supplyChains.length > 0
-                  ? "No materials available in this supply chain. Suppliers need to add materials first."
-                  : "No supply chains available. Please join a supply chain first."}
-              </p>
-            )}
-          </div>
-          
-          <div className="flex justify-end mt-6">
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(false)}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              disabled={!formData.supplyChainId}
-            >
-              Create Product
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  // Edit Modal Component
-  const EditProductModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Edit Product</h2>
-          <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <form onSubmit={handleEditSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-name">
-              Product Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="edit-name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-description">
-              Description <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="edit-description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              rows="3"
-              required
-            ></textarea>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-specifications">
-              Specifications
-            </label>
-            <textarea
-              id="edit-specifications"
-              name="specifications"
-              value={formData.specifications}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              rows="3"
-            ></textarea>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-sku">
-                SKU <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="edit-sku"
-                name="sku"
-                value={formData.sku}
-                onChange={handleInputChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="edit-price">
-                Price <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                id="edit-price"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Required Materials
-            </label>
-            {filteredMaterials.length > 0 ? (
-              <div className="max-h-60 overflow-y-auto p-2 border rounded">
-                {filteredMaterials.map((material) => (
-                  <div key={material.id} className="flex items-center mb-2">
-                    <input
-                      type="checkbox"
-                      id={`edit-material-${material.id}`}
-                      value={material.id}
-                      checked={formData.requiredMaterialIds.includes(material.id)}
-                      onChange={handleMaterialChange}
-                      className="mr-2"
-                    />
-                    <label htmlFor={`edit-material-${material.id}`} className="text-sm">
-                      {material.name} ({material.unit}) - {material.supplier.username}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No materials available. Please add materials first.</p>
-            )}
-          </div>
-          
-          <div className="flex justify-end mt-6">
-            <button
-              type="button"
-              onClick={() => setShowEditModal(false)}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Update Product
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-6">
@@ -699,15 +468,24 @@ const ProductsList = () => {
                       <div className="text-sm text-gray-500">${product.price.toFixed(2)}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {product.requiredMaterials && product.requiredMaterials.length > 0 ? (
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {product.requiredMaterials.length} materials
-                          </span>
-                        ) : (
-                          <span className="text-gray-500">No materials</span>
-                        )}
-                      </div>
+                        <div className="text-sm text-gray-900">
+                        {product.materials && product.materials.length > 0 ? (
+                            <div>
+                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 mr-2">
+                                {product.materials.length} materials
+                                </span>
+                                <div className="text-xs text-gray-500 mt-1">
+                                {product.materials.map(item => (
+                                    <div key={item.materialId}>
+                                    {item.materialName}: {item.quantity} {item.unit || ''}
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                            ) : (
+                            <span className="text-gray-500">No materials</span>
+                            )}
+                        </div>
                     </td>
                     <td className="px-6 py-4">
                       {product.active ? (
@@ -763,8 +541,25 @@ const ProductsList = () => {
       )}
 
       {/* Modals */}
-      {showCreateModal && <CreateProductModal />}
-      {showEditModal && <EditProductModal />}
+      {showCreateModal && (
+        <CreateProductModal
+            initialFormData={formData}
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setShowCreateModal(false)}
+            supplyChains={supplyChains}
+            filteredMaterials={filteredMaterials}
+            onSupplyChainChange={handleSupplyChainChange}
+        />
+      )}
+      {showEditModal && (
+        <EditProductModal
+            initialFormData={formData}
+            onSubmit={handleEditSubmit}
+            onCancel={() => setShowEditModal(false)}
+            filteredMaterials={filteredMaterials}
+            onSupplyChainChange={handleSupplyChainChange}
+        />
+      )}
     </div>
   );
 };

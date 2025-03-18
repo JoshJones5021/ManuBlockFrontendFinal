@@ -6,11 +6,14 @@ import { Link } from 'react-router-dom';
 const OrdersList = () => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     fetchOrders();
+    fetchProducts();
   }, [currentUser.id]);
 
   const fetchOrders = async () => {
@@ -36,6 +39,21 @@ const OrdersList = () => {
       setError('Failed to load orders. Please try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const response = await manufacturerService.getProducts(currentUser.id);
+      
+      if (response?.data && Array.isArray(response.data)) {
+        setProducts(response.data);
+      } else {
+        console.warn('API did not return an array for products', response);
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error('Error fetching products:', err);
     }
   };
 
@@ -67,28 +85,42 @@ const OrdersList = () => {
     }
   };
 
-  // Handle starting production for an order
-  const handleStartProduction = async (orderId) => {
-    try {
-      await manufacturerService.startOrderProduction(orderId);
+  // Check if an order can be fulfilled from inventory
+  const canFulfillFromInventory = (order) => {
+    if (!order || !order.items || !Array.isArray(order.items)) return false;
+    
+    // Check if all ordered products have sufficient inventory
+    return order.items.every(item => {
+      // Find the matching product in our products list
+      const product = products.find(p => p.id === item.productId);
+      if (!product) return false;
       
-      // Update local state to reflect the change
-      setOrders(orders.map(order => 
-        order.id === orderId 
-          ? { ...order, status: 'In Production' } 
-          : order
-      ));
-      
-      // Show a success message if you have that functionality
-      // setSuccessMessage('Production started successfully!');
-    } catch (err) {
-      console.error('Error starting production:', err);
-    }
+      // Check if there's enough inventory to fulfill this item
+      return product.availableQuantity >= item.quantity;
+    });
+  };
+
+  // Handle fulfilling an order from existing inventory
+  const handleFulfillOrder = (orderId) => {
+    // Navigate to the order details page where the fulfillment process can be completed
+    window.location.href = `/manufacturer/orders/${orderId}`;
+  };
+
+  // Handle creating production batches for an order when inventory is insufficient
+  const handleCreateProduction = (orderId) => {
+    // Navigate to the production batches page with order information
+    window.location.href = `/manufacturer/production?orderId=${orderId}`;
   };
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-6">Manufacturer Orders</h1>
+      
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
+          {success}
+        </div>
+      )}
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
@@ -129,61 +161,102 @@ const OrdersList = () => {
                     Items
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Inventory
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
-                      {order.blockchainTxHash && (
-                        <div className="text-xs text-gray-500">
-                          TX: {order.blockchainTxHash.substring(0, 10)}...
+                {orders.map((order) => {
+                  const canFulfill = canFulfillFromInventory(order);
+                  
+                  return (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                        {order.blockchainTxHash && (
+                          <div className="text-xs text-gray-500">
+                            TX: {order.blockchainTxHash.substring(0, 10)}...
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {order.customerName || 'Unknown'}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                        {order.customerName || 'Unknown'}
-                        </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{formatDate(order.createdAt)}</div>
-                      {order.requestedDeliveryDate && (
-                        <div className="text-xs text-gray-500">
-                          Requested by: {formatDate(order.requestedDeliveryDate)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(order.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{order.items?.length || 0} items</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{formatDate(order.createdAt)}</div>
+                        {order.requestedDeliveryDate && (
+                          <div className="text-xs text-gray-500">
+                            Requested by: {formatDate(order.requestedDeliveryDate)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(order.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{order.items?.length || 0} items</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {order.status === 'Requested' ? (
+                          <div className={canFulfill ? 'text-green-600' : 'text-red-600'}>
+                            {canFulfill ? (
+                              <span className="flex items-center text-sm">
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                In Stock
+                              </span>
+                            ) : (
+                              <span className="flex items-center text-sm">
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Insufficient
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                            <Link
+                          <Link
                             to={`/manufacturer/orders/${order.id}`}
                             className="text-indigo-600 hover:text-indigo-900"
-                            >
+                          >
                             View Details
-                            </Link>
-                            
-                            {order.status === 'Requested' && (
-                            <button
-                                onClick={() => handleStartProduction(order.id)}
-                                className="text-green-600 hover:text-green-900"
-                            >
-                                Start Production
-                            </button>
-                            )}
+                          </Link>
+                          
+                          {order.status === 'Requested' && (
+                            <>
+                              {canFulfill ? (
+                                <button
+                                  onClick={() => handleFulfillOrder(order.id)}
+                                  className="text-green-600 hover:text-green-900"
+                                >
+                                  Fulfill Order
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleCreateProduction(order.id)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Create Production
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

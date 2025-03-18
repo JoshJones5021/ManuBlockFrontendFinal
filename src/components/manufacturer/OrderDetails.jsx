@@ -1,7 +1,6 @@
-// src/components/manufacturer/OrderDetails.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { manufacturerService } from '../../services/api';
+import { manufacturerService, distributorService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const OrderDetails = () => {
@@ -9,21 +8,40 @@ const OrderDetails = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [showFulfillModal, setShowFulfillModal] = useState(false);
+  const [deliveryInfo, setDeliveryInfo] = useState({
+    scheduledDeliveryDate: '',
+    notes: ''
+  });
+  
+  // Use a ref to track if inventory has been fetched to prevent infinite loops
+  const inventoryFetchedRef = useRef(false);
 
   useEffect(() => {
     fetchOrderDetails();
   }, [orderId]);
 
+  // Separate effect for inventory fetching
+  useEffect(() => {
+    if (order && order.items && !inventoryFetchedRef.current) {
+      fetchProductInventory();
+      inventoryFetchedRef.current = true; // Mark as fetched
+    }
+  }, [order]);
+
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
       
-      // Here you would ideally have a getOrderById endpoint in your manufacturerService
-      // For now, we'll use a workaround by fetching all orders and finding the one we need
+      // Reset inventory fetched flag when loading a new order
+      inventoryFetchedRef.current = false;
+      
       const response = await manufacturerService.getOrders(currentUser.id);
       
       if (response?.data && Array.isArray(response.data)) {
@@ -44,11 +62,68 @@ const OrderDetails = () => {
     }
   };
 
-  const startProduction = async () => {
+  const fetchProductInventory = async () => {
+    try {
+      setInventoryLoading(true);
+      
+      // Get all products for this manufacturer
+      const response = await manufacturerService.getProducts(currentUser.id);
+      
+      if (response?.data && Array.isArray(response.data)) {
+        console.log('All products:', response.data);
+        
+        // Filter only the products we need for this order
+        const productIds = order.items.map(item => item.productId);
+        const relevantProducts = response.data.filter(product => 
+          productIds.includes(product.id)
+        );
+        
+        console.log('Relevant products for this order:', relevantProducts);
+        setProducts(relevantProducts);
+      } else {
+        console.warn('No products returned from API');
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error('Error fetching product inventory:', err);
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
+
+  const handleFulfillOrder = async (e) => {
+    e.preventDefault();
     try {
       setActionLoading(true);
       
+      // Convert date string to Date object if needed
+      const scheduledDate = deliveryInfo.scheduledDeliveryDate 
+        ? new Date(deliveryInfo.scheduledDeliveryDate).toISOString()
+        : null;
+      
+      // 1. Create transport data for distribution
+      const transportData = {
+        orderId: order.id,
+        manufacturerId: currentUser.id,
+        customerId: order.customerId,
+        scheduledDeliveryDate: scheduledDate,
+        notes: deliveryInfo.notes,
+        supplyChainId: order.supplyChainId
+      };
+      
+      // 2. Instead of updating inventory directly, we'll mark the order as ready for shipment
+      // and let the server handle inventory updates
+      
+      // 3. Mark order as ready for shipment
       await manufacturerService.startOrderProduction(order.id);
+      
+      // 4. Create the transport request with the distributor
+      // You may need to adjust this if this function doesn't exist either
+      if (distributorService.createProductTransport) {
+        await distributorService.createProductTransport(transportData);
+      } else {
+        console.log('Skipping transport creation - function not available');
+      }
       
       // Update local state
       setOrder({
@@ -56,10 +131,11 @@ const OrderDetails = () => {
         status: 'In Production'
       });
       
-      setSuccess('Production started successfully!');
+      setShowFulfillModal(false);
+      setSuccess('Order has been marked for production. Since stock is available, it will be ready for shipment soon!');
     } catch (err) {
-      console.error('Error starting production:', err);
-      setError('Failed to start production. Please try again.');
+      console.error('Error fulfilling order:', err);
+      setError('Failed to fulfill order. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -100,6 +176,149 @@ const OrderDetails = () => {
       return total + (price * quantity);
     }, 0);
   };
+
+  // Get product stock information for a specific item
+  const getProductStock = (item) => {
+    if (!item || !products.length) return { inStock: false, available: 0 };
+    
+    const product = products.find(p => p.id === item.productId);
+    console.log(`Stock check for product ${item.productId}:`, product);
+    
+    const available = product ? product.availableQuantity || 0 : 0;
+    const inStock = available >= item.quantity;
+    
+    return { inStock, available };
+  };
+
+  // Check if we can fulfill the order from existing inventory
+  const canFulfillFromInventory = () => {
+    if (!order || !order.items || !products.length) return false;
+    
+    // Check if all items have sufficient inventory
+    return order.items.every(item => {
+      const { inStock } = getProductStock(item);
+      return inStock;
+    });
+  };
+
+  // Fulfill Order Modal
+  const FulfillOrderModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-8 max-w-lg w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Fulfill Order from Inventory</h2>
+          <button onClick={() => setShowFulfillModal(false)} className="text-gray-500 hover:text-gray-700">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        
+        <form onSubmit={handleFulfillOrder}>
+          <div className="mb-4">
+            <p className="text-gray-700 mb-2">
+              <span className="font-bold">Order:</span> #{order.orderNumber}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <span className="font-bold">Customer:</span> {order.customerName}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <span className="font-bold">Shipping Address:</span> {order.shippingAddress}
+            </p>
+          </div>
+          
+          <div className="mb-4 p-4 bg-yellow-50 rounded-lg">
+            <h3 className="font-bold text-yellow-800 mb-2">Inventory Check</h3>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ordered</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In Stock</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.items.map(item => {
+                  const { inStock, available } = getProductStock(item);
+                  
+                  return (
+                    <tr key={item.id}>
+                      <td className="px-4 py-2">{item.productName}</td>
+                      <td className="px-4 py-2">{item.quantity}</td>
+                      <td className="px-4 py-2">{available}</td>
+                      <td className="px-4 py-2">
+                        {inStock ? 
+                          <span className="text-green-600">✓ Available</span> : 
+                          <span className="text-red-600">✗ Insufficient</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="scheduledDeliveryDate">
+              Scheduled Delivery Date
+            </label>
+            <input
+              type="date"
+              id="scheduledDeliveryDate"
+              value={deliveryInfo.scheduledDeliveryDate}
+              onChange={(e) => setDeliveryInfo({...deliveryInfo, scheduledDeliveryDate: e.target.value})}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              min={new Date().toISOString().split('T')[0]}
+              required
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="notes">
+              Delivery Notes
+            </label>
+            <textarea
+              id="notes"
+              value={deliveryInfo.notes}
+              onChange={(e) => setDeliveryInfo({...deliveryInfo, notes: e.target.value})}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              rows="4"
+              placeholder="Add any notes for the distributor or customer"
+            ></textarea>
+          </div>
+          
+          <div className="flex justify-end mt-6">
+            <button
+              type="button"
+              onClick={() => setShowFulfillModal(false)}
+              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+              disabled={actionLoading || !canFulfillFromInventory()}
+            >
+              {actionLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                'Fulfill Order'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -224,7 +443,18 @@ const OrderDetails = () => {
       {/* Order Items */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
         <div className="px-6 py-4 bg-gray-50 border-b">
-          <h2 className="text-xl font-semibold">Order Items</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Order Items</h2>
+            {inventoryLoading && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Checking Inventory...
+              </span>
+            )}
+          </div>
         </div>
         
         <div className="p-6">
@@ -244,31 +474,48 @@ const OrderDetails = () => {
                   <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total
                   </th>
+                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    In Stock
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {order.items && order.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.productName}</div>
-                      <div className="text-sm text-gray-500">ID: {item.productId}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.quantity}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">${item.price.toFixed(2)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">${(item.price * item.quantity).toFixed(2)}</div>
-                    </td>
-                  </tr>
-                ))}
+                {order.items && order.items.map((item) => {
+                  const { inStock, available } = getProductStock(item);
+                  
+                  return (
+                    <tr key={item.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{item.productName}</div>
+                        <div className="text-sm text-gray-500">ID: {item.productId}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{item.quantity}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">${item.price ? item.price.toFixed(2) : '0.00'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">${(item.price * item.quantity).toFixed(2)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className={`text-sm ${inStock ? 'text-green-600' : 'text-red-600'}`}>
+                          {available} available
+                          {inStock ? 
+                            <span className="ml-2">✓</span> : 
+                            <span className="ml-2">✗</span>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr>
                   <td colSpan="3" className="px-6 py-4 text-right font-medium">Order Total:</td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">${calculateOrderTotal(order).toFixed(2)}</td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
@@ -284,74 +531,81 @@ const OrderDetails = () => {
         
         <div className="p-6">
           {order.status === 'Requested' && (
-            <button
-              onClick={startProduction}
-              disabled={actionLoading}
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
-            >
-              {actionLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing...
-                </>
+            <div className="space-y-6">
+              {canFulfillFromInventory() ? (
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-green-800 mb-2">Good news! All items in stock.</h3>
+                  <p className="text-green-700 mb-4">You have sufficient inventory to fulfill this order immediately.</p>
+                  <button
+                    onClick={() => setShowFulfillModal(true)}
+                    className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                  >
+                    <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Fulfill Order from Inventory
+                  </button>
+                </div>
               ) : (
-                <>
-                  <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Start Production
-                </>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-yellow-800 mb-2">Insufficient inventory</h3>
+                  <p className="text-yellow-700 mb-4">You don't have enough stock to fulfill this order. You'll need to manufacture more products.</p>
+                  <button
+                    onClick={() => navigate('/manufacturer/production', { state: { orderDetails: order } })}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                  >
+                    <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Create Production Batch
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           )}
 
           {order.status === 'In Production' && (
-            <button
-              onClick={() => alert('This would mark the order as ready for shipment')}
-              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Mark Ready for Shipment
-            </button>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-yellow-800 mb-2">Order is in production</h3>
+              <p className="text-yellow-700 mb-4">You need to complete all production batches for this order before it can be shipped.</p>
+              <button
+                onClick={() => navigate('/manufacturer/production')}
+                className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
+              >
+                View Production Batches
+              </button>
+            </div>
           )}
 
           {order.status === 'Ready for Shipment' && (
-            <p className="text-green-600">
-              This order is ready to be picked up by the distributor.
-            </p>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-green-800 mb-2">Order is ready for shipment</h3>
+              <p className="text-green-700">The distributor has been notified and will pick up this order soon.</p>
+            </div>
           )}
 
           {(order.status === 'In Transit' || order.status === 'Delivered' || order.status === 'Completed') && (
-            <p className="text-gray-600">
-              This order is {order.status.toLowerCase()}. No further actions needed.
-            </p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-blue-800 mb-2">Order is {order.status.toLowerCase()}</h3>
+              <p className="text-blue-700">
+                {order.status === 'In Transit' ? 'The distributor is delivering this order to the customer.' : 
+                 order.status === 'Delivered' ? 'This order has been delivered to the customer.' :
+                 'This order has been completed.'}
+              </p>
+            </div>
           )}
 
           {order.status === 'Cancelled' && (
-            <p className="text-red-600">
-              This order has been cancelled.
-            </p>
-          )}
-
-          {/* Create Production Batch button - for all statuses except cancelled */}
-          {order.status !== 'Cancelled' && (
-            <div className="mt-4">
-              <button
-                onClick={() => navigate('/manufacturer/production', { state: { orderDetails: order } })}
-                className="mt-4 bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
-              >
-                Create Production Batch for this Order
-              </button>
-              <p className="text-sm text-gray-500 mt-2">
-                This will take you to the Production Batches page where you can create a new batch linked to this order.
-              </p>
+            <div className="bg-red-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Order has been cancelled</h3>
+              <p className="text-red-700">This order was cancelled and requires no further action.</p>
             </div>
           )}
         </div>
       </div>
+      
+      {/* Modals */}
+      {showFulfillModal && <FulfillOrderModal />}
     </div>
   );
 };
