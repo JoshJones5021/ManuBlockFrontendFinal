@@ -180,7 +180,7 @@ const DistributorDashboard = () => {
             
             <div className="flex justify-between items-center">
               <Link 
-                to="/distributor/material-pickups/schedule" 
+                to="/distributor/transports" 
                 className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
               >
                 <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -218,7 +218,7 @@ const DistributorDashboard = () => {
             
             <div className="flex justify-between items-center">
               <Link 
-                to="/distributor/product-deliveries/schedule" 
+                to="/distributor/transports" 
                 className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
               >
                 <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

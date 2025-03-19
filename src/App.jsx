@@ -30,8 +30,6 @@ import MaterialRequestApproval from './components/supplier/MaterialRequestApprov
 // Simplified Distributor Components
 import TransportsList from './components/distributor/TransportsList';
 import TransportDetails from './components/distributor/TransportDetails';
-import MaterialPickupScheduler from './components/distributor/MaterialPickupScheduler';
-import ProductDeliveryScheduler from './components/distributor/ProductDeliveryScheduler';
 
 // Customer Components
 import ProductCatalog from './components/customer/ProductCatalog';
@@ -90,8 +88,6 @@ const App = () => {
             <Route path="distributor">
               <Route path="transports" element={<TransportsList />} />
               <Route path="transports/:transportId" element={<TransportDetails />} />
-              <Route path="material-pickups/schedule" element={<MaterialPickupScheduler />} />
-              <Route path="product-deliveries/schedule" element={<ProductDeliveryScheduler />} />
             </Route>
             
             {/* Customer Routes */}

@@ -209,15 +209,6 @@ const TransportDetails = () => {
                 )}
               </div>
             </div>
-            
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Blockchain Status</h3>
-              {transport.blockchainItemId ? (
-                <p className="text-base text-green-600">Tracked on Blockchain</p>
-              ) : (
-                <p className="text-base text-yellow-600">Not Tracked</p>
-              )}
-            </div>
           </div>
           
           {/* Available Actions */}

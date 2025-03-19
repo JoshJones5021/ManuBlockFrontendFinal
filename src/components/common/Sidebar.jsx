@@ -76,9 +76,7 @@ const Sidebar = () => {
       case 'DISTRIBUTOR':
         return [
           ...items,
-          { path: '/distributor/transports', label: 'All Transports', icon: '🚚' },
-          { path: '/distributor/material-pickups/schedule', label: 'Schedule Pickups', icon: '📦' },
-          { path: '/distributor/product-deliveries/schedule', label: 'Schedule Deliveries', icon: '📬' }
+          { path: '/distributor/transports', label: 'All Transports', icon: '🚚' }
         ];
         
       case 'CUSTOMER':

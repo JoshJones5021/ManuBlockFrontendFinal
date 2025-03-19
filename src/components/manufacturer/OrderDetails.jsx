@@ -16,6 +16,7 @@ const OrderDetails = () => {
   const [success, setSuccess] = useState(null);
   const [showFulfillModal, setShowFulfillModal] = useState(false);
   const [deliveryInfo, setDeliveryInfo] = useState({
+    scheduledPickupDate: '',
     scheduledDeliveryDate: '',
     notes: ''
   });
@@ -139,6 +140,10 @@ const fetchDistributors = async () => {
         setActionLoading(false);
         return;
       }
+
+      const scheduledPickupDate = deliveryInfo.scheduledPickupDate 
+        ? new Date(deliveryInfo.scheduledPickupDate).toISOString()
+        : null;
       
       // Convert date string to Date object if needed
       const scheduledDate = deliveryInfo.scheduledDeliveryDate 
@@ -149,8 +154,9 @@ const fetchDistributors = async () => {
       const fulfillmentData = {
         manufacturerId: currentUser.id,
         customerId: order.customerId,
-        distributorId: parseInt(selectedDistributorId), // Convert to number
+        distributorId: parseInt(selectedDistributorId),
         supplyChainId: order.supplyChainId,
+        scheduledPickupDate: scheduledPickupDate,
         scheduledDeliveryDate: scheduledDate,
         notes: deliveryInfo.notes
       };
@@ -338,6 +344,21 @@ const fetchDistributors = async () => {
                 No distributors available for this supply chain.
               </p>
             )}
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="scheduledPickupDate">
+                Scheduled Pickup Date <span className="text-red-500">*</span>
+            </label>
+            <input
+                type="date"
+                id="scheduledPickupDate"
+                value={deliveryInfo.scheduledPickupDate}
+                onChange={(e) => setDeliveryInfo({...deliveryInfo, scheduledPickupDate: e.target.value})}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                min={new Date().toISOString().split('T')[0]}
+                required
+            />
           </div>
           
           <div className="mb-4">
