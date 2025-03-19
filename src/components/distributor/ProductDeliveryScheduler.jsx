@@ -1,4 +1,4 @@
-// src/components/distributor/ProductDeliveryScheduler.jsx - Removed NavTabs dependency
+// src/components/distributor/ProductDeliveryScheduler.jsx - Fixed with correct data structure handling
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { distributorService } from '../../services/api';
@@ -28,11 +28,19 @@ const ProductDeliveryScheduler = () => {
     try {
       setLoading(true);
       const response = await distributorService.getReadyOrders();
-      setReadyOrders(response.data);
+      
+      if (response?.data && Array.isArray(response.data)) {
+        setReadyOrders(response.data);
+      } else {
+        console.warn('API did not return an array for readyOrders', response);
+        setReadyOrders([]);
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Error fetching ready orders:', err);
       setError('Failed to load orders. Please try again later.');
+      setReadyOrders([]);
     } finally {
       setLoading(false);
     }
@@ -44,6 +52,18 @@ const ProductDeliveryScheduler = () => {
       ...formData,
       [name]: value
     });
+  };
+
+  const getCustomerName = (order) => {
+    return order?.customerName || 'Unknown Customer';
+  };
+
+  const getManufacturerName = (order) => {
+    // Since manufacturer is not directly in the data, we'll use the supply chain name
+    // or derive it from product information if available
+    return order?.manufacturerName || 
+           (order?.items && order.items[0]?.manufacturerName) || 
+           'Unknown Manufacturer';
   };
 
   const handleSelectOrder = (order) => {
@@ -58,10 +78,13 @@ const ProductDeliveryScheduler = () => {
       return date.toISOString().split('T')[0];
     };
     
+    // Use supply chain name instead of manufacturer name since it's available
+    const manufacturerName = order.supplyChainName || 'Supplier';
+    
     setFormData({
       scheduledPickupDate: formatDate(today),
       scheduledDeliveryDate: formatDate(tomorrow),
-      pickupLocation: `${order.manufacturer?.username}'s Facility`,
+      pickupLocation: `${manufacturerName}'s Facility`,
       deliveryLocation: order.shippingAddress || 'Not provided'
     });
   };
@@ -127,9 +150,11 @@ const ProductDeliveryScheduler = () => {
     const displayItems = items.slice(0, 2);
     const remaining = items.length - displayItems.length;
     
-    const itemsText = displayItems.map(item => 
-      `${item.product?.name || 'Product'} (${item.quantity})`
-    ).join(', ');
+    const itemsText = displayItems.map(item => {
+      const productName = item.productName || 'Product';
+      const quantity = item.quantity || 0;
+      return `${productName} (${quantity})`;
+    }).join(', ');
     
     if (remaining > 0) {
       return `${itemsText} and ${remaining} more item(s)`;
@@ -209,13 +234,13 @@ const ProductDeliveryScheduler = () => {
                     {readyOrders.map((order) => (
                       <tr key={order.id} className={selectedOrder?.id === order.id ? 'bg-blue-50' : ''}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                          <div className="text-sm font-medium text-gray-900">{order.orderNumber || 'N/A'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{order.customer?.username || 'Unknown'}</div>
+                          <div className="text-sm text-gray-900">{getCustomerName(order)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{order.manufacturer?.username || order.items?.[0]?.product?.manufacturer?.username || 'Unknown'}</div>
+                          <div className="text-sm text-gray-900">{getManufacturerName(order)}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900">{formatItems(order.items)}</div>
@@ -321,8 +346,8 @@ const ProductDeliveryScheduler = () => {
                   <div className="mb-4">
                     <h3 className="text-sm font-bold text-gray-700 mb-2">Selected Order</h3>
                     <div className="bg-blue-50 p-3 rounded-md">
-                      <p><span className="font-medium">Order #:</span> {selectedOrder.orderNumber}</p>
-                      <p><span className="font-medium">Customer:</span> {selectedOrder.customer?.username || 'Unknown'}</p>
+                      <p><span className="font-medium">Order #:</span> {selectedOrder.orderNumber || 'N/A'}</p>
+                      <p><span className="font-medium">Customer:</span> {getCustomerName(selectedOrder)}</p>
                       <p><span className="font-medium">Items:</span> {formatItems(selectedOrder.items)}</p>
                     </div>
                   </div>

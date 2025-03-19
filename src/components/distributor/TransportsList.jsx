@@ -16,6 +16,8 @@ const TransportsList = () => {
   const [selectedTransport, setSelectedTransport] = useState(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [modalAction, setModalAction] = useState('');
+  const [pendingMaterialPickups, setPendingMaterialPickups] = useState([]);
+  const [pendingProductDeliveries, setPendingProductDeliveries] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     scheduled: 0,
@@ -32,9 +34,26 @@ const TransportsList = () => {
   const fetchTransports = async () => {
     try {
       setLoading(true);
-      const response = await distributorService.getTransports(currentUser.id);
-      setTransports(response.data);
-      calculateStats(response.data);
+      
+      // Fetch transports and pending material pickups in parallel
+      const [transportsResponse, pendingMaterialsResponse] = await Promise.all([
+        distributorService.getTransports(currentUser.id),
+        distributorService.getReadyMaterialRequests()
+      ]);
+      
+      setTransports(transportsResponse.data || []);
+      calculateStats(transportsResponse.data || []);
+      
+      // Check if there are any pending material pickups
+      const pendingMaterials = pendingMaterialsResponse.data || [];
+      
+      // If there are pending pickups, show a notification
+      if (pendingMaterials.length > 0) {
+        // Can set to state if you want to display this in the UI
+        // For example, to show a notification banner
+        setSuccess(`There are ${pendingMaterials.length} material requests ready for pickup.`);
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Error fetching transports:', err);
@@ -223,6 +242,27 @@ const TransportsList = () => {
           <span className="block sm:inline"> {success}</span>
         </div>
       )}
+
+      {/* Pending Pickups and Deliveries Notifications */}
+    {pendingMaterialPickups.length > 0 && (
+    <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-6">
+        <strong className="font-bold">Ready for Pickup:</strong>
+        <span className="block sm:inline"> {pendingMaterialPickups.length} material {pendingMaterialPickups.length === 1 ? 'request' : 'requests'} ready for pickup. </span>
+        <Link to="/distributor/material-pickups/schedule" className="underline font-semibold">
+        Schedule now
+        </Link>
+    </div>
+    )}
+
+    {pendingProductDeliveries.length > 0 && (
+    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
+        <strong className="font-bold">Ready for Delivery:</strong>
+        <span className="block sm:inline"> {pendingProductDeliveries.length} product {pendingProductDeliveries.length === 1 ? 'order' : 'orders'} ready for delivery. </span>
+        <Link to="/distributor/product-deliveries/schedule" className="underline font-semibold">
+        Schedule now
+        </Link>
+    </div>
+    )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">

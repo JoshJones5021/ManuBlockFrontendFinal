@@ -1,12 +1,14 @@
-// src/components/distributor/TransportDetails.jsx - Updated without NavTabs
+// src/components/distributor/TransportDetails.jsx - Final fix
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { distributorService, blockchainService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import RecordTransportAction from './RecordTransportAction';
 
 const TransportDetails = () => {
   const { transportId } = useParams();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [transport, setTransport] = useState(null);
   const [blockchainInfo, setBlockchainInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,20 +16,38 @@ const TransportDetails = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Add debugging log
+    console.log("Transport ID from params:", transportId);
+    
+    if (!transportId) {
+      setError('Invalid transport ID. Please return to the transports list and try again.');
+      setLoading(false);
+      return;
+    }
+    
     fetchTransportDetails();
-  }, [transportId]);
+  }, [transportId, currentUser]);
 
   const fetchTransportDetails = async () => {
     try {
       setLoading(true);
       
-      // In a real implementation, we would have an API to get a specific transport
-      // For now, we'll fetch all transports and find the one we need
-      const response = await distributorService.getTransports();
+      console.log("Fetching details for transport ID:", transportId);
+      
+      // Instead of trying to fetch a single transport, get all transports and filter
+      const response = await distributorService.getTransports(currentUser.id);
+      console.log("All transports response:", response);
+      
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid response format');
+      }
+      
+      // Find the transport with the matching ID
       const foundTransport = response.data.find(t => t.id === parseInt(transportId));
+      console.log("Found transport:", foundTransport);
       
       if (!foundTransport) {
-        throw new Error('Transport not found');
+        throw new Error(`Transport with ID ${transportId} not found`);
       }
       
       setTransport(foundTransport);
@@ -162,12 +182,12 @@ const TransportDetails = () => {
             
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">From</h3>
-              <p className="text-base">{transport.source.username}</p>
+              <p className="text-base">{transport.source?.username || 'Unknown Source'}</p>
             </div>
             
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">To</h3>
-              <p className="text-base">{transport.destination.username}</p>
+              <p className="text-base">{transport.destination?.username || 'Unknown Destination'}</p>
             </div>
             
             <div>
@@ -225,49 +245,6 @@ const TransportDetails = () => {
               )}
             </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Items Being Transported */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-        <div className="px-6 py-4 bg-gray-50 border-b">
-          <h2 className="text-xl font-semibold">Items Being Transported</h2>
-        </div>
-        
-        <div className="p-6">
-          {transport.type === 'Material Transport' ? (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-800 mb-2">Material Request Details</h3>
-              <p>
-                <span className="font-medium">Request Number:</span> {transport.materialRequest?.requestNumber || 'N/A'}
-              </p>
-              <p>
-                <span className="font-medium">Requested Materials:</span> {transport.materialRequest?.items?.length || 0} items
-              </p>
-              <p>
-                <span className="font-medium">From Supplier:</span> {transport.source.username}
-              </p>
-              <p>
-                <span className="font-medium">To Manufacturer:</span> {transport.destination.username}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-medium text-green-800 mb-2">Order Details</h3>
-              <p>
-                <span className="font-medium">Order Number:</span> {transport.order?.orderNumber || 'N/A'}
-              </p>
-              <p>
-                <span className="font-medium">Ordered Products:</span> {transport.order?.items?.length || 0} items
-              </p>
-              <p>
-                <span className="font-medium">From Manufacturer:</span> {transport.source.username}
-              </p>
-              <p>
-                <span className="font-medium">To Customer:</span> {transport.destination.username}
-              </p>
-            </div>
-          )}
         </div>
       </div>
       

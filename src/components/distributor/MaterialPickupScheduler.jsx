@@ -1,13 +1,14 @@
-// src/components/distributor/MaterialPickupScheduler.jsx - Removed NavTabs dependency
+// src/components/distributor/MaterialPickupScheduler.jsx - Updated to handle source/destination correctly
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { distributorService } from '../../services/api';
+import { distributorService, supplierService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const MaterialPickupScheduler = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [readyMaterials, setReadyMaterials] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -19,30 +20,49 @@ const MaterialPickupScheduler = () => {
   });
 
   useEffect(() => {
-    fetchReadyMaterials();
+    fetchData();
   }, []);
 
-  const fetchReadyMaterials = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await distributorService.getReadyMaterialRequests();
       
-      // Ensure readyMaterials is always an array
-      if (response?.data && Array.isArray(response.data)) {
-        setReadyMaterials(response.data);
+      // Fetch both ready materials and suppliers in parallel
+      const [materialsResponse, suppliersResponse] = await Promise.all([
+        distributorService.getReadyMaterialRequests(),
+        supplierService.getAllSuppliers()
+      ]);
+      
+      // Process ready materials
+      if (materialsResponse?.data && Array.isArray(materialsResponse.data)) {
+        setReadyMaterials(materialsResponse.data);
       } else {
-        console.warn('API did not return an array for readyMaterials', response);
-        setReadyMaterials([]); // Initialize as empty array if API response is not an array
+        console.warn('API did not return an array for readyMaterials', materialsResponse);
+        setReadyMaterials([]);
+      }
+      
+      // Process suppliers
+      if (suppliersResponse?.data && Array.isArray(suppliersResponse.data)) {
+        setSuppliers(suppliersResponse.data);
+      } else {
+        console.warn('API did not return an array for suppliers', suppliersResponse);
+        setSuppliers([]);
       }
       
       setError(null);
     } catch (err) {
-      console.error('Error fetching ready material requests:', err);
-      setError('Failed to load material requests. Please try again later.');
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Please try again later.');
       setReadyMaterials([]);
+      setSuppliers([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getSupplierName = (supplierId) => {
+    const supplier = suppliers.find(s => s.id === supplierId);
+    return supplier ? supplier.username : 'Unknown Supplier';
   };
 
   const handleInputChange = (e) => {
@@ -196,7 +216,7 @@ const MaterialPickupScheduler = () => {
                           <div className="text-sm font-medium text-gray-900">{request.requestNumber}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{request.supplier?.username || 'Unknown'}</div>
+                          <div className="text-sm text-gray-900">{getSupplierName(request.supplierId)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{request.manufacturer?.username || 'Unknown'}</div>
@@ -273,7 +293,7 @@ const MaterialPickupScheduler = () => {
                     <h3 className="text-sm font-bold text-gray-700 mb-2">Selected Request</h3>
                     <div className="bg-blue-50 p-3 rounded-md">
                       <p><span className="font-medium">Request #:</span> {selectedRequest.requestNumber}</p>
-                      <p><span className="font-medium">From:</span> {selectedRequest.supplier?.username || 'Unknown'}</p>
+                      <p><span className="font-medium">From:</span> {getSupplierName(selectedRequest.supplierId)}</p>
                       <p><span className="font-medium">To:</span> {selectedRequest.manufacturer?.username || 'Unknown'}</p>
                     </div>
                   </div>

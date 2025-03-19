@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { manufacturerService, distributorService } from '../../services/api';
+import { manufacturerService, distributorService, supplyChainService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const OrderDetails = () => {
@@ -39,24 +39,33 @@ const OrderDetails = () => {
 
   // Fetch distributors when the order is loaded
   useEffect(() => {
-    const fetchDistributors = async () => {
-      try {
-        // This is just a placeholder - modify to use actual endpoint that gets distributors
-        // for your system once it's implemented
-        const mockDistributors = [
-          { id: 4, username: "MainDistributor" },
-          { id: 5, username: "SecondaryDistributor" }
-        ];
-        setDistributors(mockDistributors);
+    // Replace the fetchDistributors function
+const fetchDistributors = async () => {
+    try {
+      // Get distributors associated with this supply chain
+      const response = await supplyChainService.getAssignedUsers(order.supplyChainId);
+      
+      if (response?.data && Array.isArray(response.data)) {
+        // Filter to only get users with distributor role
+        const chainDistributors = response.data.filter(user => 
+          user.role === 'DISTRIBUTOR'
+        );
         
-        // Set default distributor
-        if (mockDistributors.length > 0) {
-          setSelectedDistributorId(mockDistributors[0].id);
+        setDistributors(chainDistributors);
+        
+        // Set default distributor if available
+        if (chainDistributors.length > 0) {
+          setSelectedDistributorId(chainDistributors[0].id);
         }
-      } catch (error) {
-        console.error('Error fetching distributors:', error);
+      } else {
+        console.error('No distributors returned for this supply chain');
+        setDistributors([]);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching distributors:', error);
+      setDistributors([]);
+    }
+  };
     
     if (order && order.supplyChainId) {
       fetchDistributors();
