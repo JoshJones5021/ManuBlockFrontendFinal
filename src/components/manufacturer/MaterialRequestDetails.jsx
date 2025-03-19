@@ -308,67 +308,6 @@ const MaterialRequestDetails = () => {
           </div>
         </div>
       </div>
-
-      {/* Blockchain Information */}
-      {materialRequest.blockchainTxHash && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 bg-gray-50 border-b">
-            <h2 className="text-xl font-semibold">Blockchain Information</h2>
-          </div>
-          
-          <div className="p-6">
-            {blockchainStatus.loading ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              </div>
-            ) : blockchainStatus.error ? (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                {blockchainStatus.error}
-              </div>
-            ) : blockchainStatus.data ? (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Transaction Status</h3>
-                  <p className="text-base font-medium text-green-600">Confirmed</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Block Number</h3>
-                  <p className="text-base">{blockchainStatus.data.blockNumber}</p>
-                  </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Timestamp</h3>
-                  <p className="text-base">{new Date(blockchainStatus.data.timestamp * 1000).toLocaleString()}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Gas Used</h3>
-                  <p className="text-base">{blockchainStatus.data.gasUsed}</p>
-                </div>
-                
-                <div className="pt-4 border-t">
-                  <a 
-                    href={`https://sepolia.etherscan.io/tx/${materialRequest.blockchainTxHash}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-flex items-center"
-                  >
-                    <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
-                    View on Etherscan
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="text-gray-500 text-center py-4">
-                No blockchain information available.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
