@@ -15,15 +15,24 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
     try {
       setLoading(true);
       setError(null);
-      
+  
+      // 🔥 Conditional logic for Recycling Pickup vs Normal
       if (actionType === 'pickup') {
-        await distributorService.recordPickup(transport.id);
+        if (transport.type === 'Recycling Pickup') {
+          await distributorService.recordRecyclePickup(transport.id);  // ♻️ Recycling endpoint
+        } else {
+          await distributorService.recordPickup(transport.id);         // 📦 Normal endpoint
+        }
       } else if (actionType === 'delivery') {
-        await distributorService.recordDelivery(transport.id);
+        if (transport.type === 'Recycling Pickup') {
+          await distributorService.recordRecycleDelivery(transport.id);  // ♻️ Recycling endpoint
+        } else {
+          await distributorService.recordDelivery(transport.id);         // 📦 Normal endpoint
+        }
       }
-      
+  
       setShowConfirmation(false);
-      
+  
       if (onComplete) {
         onComplete();
       } else {
@@ -36,6 +45,7 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
       setLoading(false);
     }
   };
+  
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Not specified';

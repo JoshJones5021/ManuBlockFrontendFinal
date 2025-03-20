@@ -465,7 +465,9 @@ const filterMaterialsByChain = (allMaterials, chainId) => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">{product.sku}</div>
-                      <div className="text-sm text-gray-500">${product.price.toFixed(2)}</div>
+                      <div className="text-sm text-gray-500">
+                        {product.price != null ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                         <div className="text-sm text-gray-900">
