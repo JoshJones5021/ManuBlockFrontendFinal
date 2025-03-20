@@ -26,10 +26,12 @@ import MaterialAllocationManagement from './components/supplier/MaterialAllocati
 import ProductsList from './components/manufacturer/ProductsList';
 import ProductionBatchesList from './components/manufacturer/ProductionBatchesList';
 import MaterialRequestApproval from './components/supplier/MaterialRequestApproval';
+import RecycledItemsProcessing from './components/manufacturer/RecycledItemsProcessing';
 
 // Simplified Distributor Components
 import TransportsList from './components/distributor/TransportsList';
 import TransportDetails from './components/distributor/TransportDetails';
+import RecyclingTransports from './components/distributor/RecyclingTransports';
 
 // Customer Components
 import ProductCatalog from './components/customer/ProductCatalog';
@@ -39,6 +41,7 @@ import MaterialRequestDetails from './components/manufacturer/MaterialRequestDet
 import OrderTracking from './components/customer/OrderTracking';
 import OrdersLists from './components/manufacturer/OrdersList';
 import OrderDetails from './components/manufacturer/OrderDetails';
+import Recycling from './components/customer/Recycling';
 
 const App = () => {
   return (
@@ -82,12 +85,14 @@ const App = () => {
               <Route path="material-requests/:requestId" element={<MaterialRequestDetails />} />
               <Route path="orders" element={<OrdersLists />} />
               <Route path="orders/:orderId" element={<OrderDetails />} />
+              <Route path="recycling" element={<RecycledItemsProcessing />} />
             </Route>
             
             {/* Simplified Distributor Routes */}
             <Route path="distributor">
               <Route path="transports" element={<TransportsList />} />
               <Route path="transports/:transportId" element={<TransportDetails />} />
+              <Route path="recycling" element={<RecyclingTransports />} />
             </Route>
             
             {/* Customer Routes */}
@@ -95,6 +100,7 @@ const App = () => {
               <Route path="products" element={<ProductCatalog />} />
               <Route path="orders" element={<OrdersList />} />
               <Route path="tracking" element={<OrderTracking />} />
+              <Route path="recycling" element={<Recycling />} />
             </Route>
           </Route>
           

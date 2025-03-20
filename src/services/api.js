@@ -41,6 +41,21 @@ const customerService = {
   },
   getOrderHistory: (orderId) => {
     return api.get(`/customer/orders/${orderId}/history`);
+  },
+  getChurnedProducts: (customerId) => {
+    return api.get(`/recycle/customer/products/churned/${customerId}`);
+  },
+  markProductForRecycling: (itemId, data) => {
+    // Make sure timestamps are converted correctly
+    const payload = {
+      ...data,
+      // If there are date fields, format them as timestamps
+      churnDate: data.churnDate ? new Date(data.churnDate).getTime() : undefined
+    };
+    return api.post(`/recycle/customer/products/${itemId}/churn`, payload);
+  },
+  getRecyclingTransports: (customerId) => {
+    return api.get(`/recycle/customer/transports/${customerId}`);
   }
 };
 
@@ -147,6 +162,30 @@ const manufacturerService = {
   },
   getMaterialRequestById: (requestId) => {
     return api.get(`/manufacturer/materials/request/${requestId}`);
+  },
+  getPendingRecycledItems: (manufacturerId) => {
+    return api.get(`/recycle/manufacturer/pending-items/${manufacturerId}`);
+  },
+  processToMaterials: (itemId, data) => {
+    return api.post('/recycle/manufacturer/process-to-materials', {
+      itemId,
+      ...data
+    });
+  },
+  refurbishProduct: (itemId, data) => {
+    return api.post('/recycle/manufacturer/refurbish', {
+      itemId,
+      ...data
+    });
+  },
+  getRecycledMaterials: (manufacturerId) => {
+    return api.get(`/recycle/manufacturer/materials/${manufacturerId}`);
+  },
+  getRefurbishedProducts: (manufacturerId) => {
+    return api.get(`/recycle/manufacturer/products/${manufacturerId}`);
+  },
+  getAllManufacturers: () => {
+    return api.get('/users', { params: { role: 'MANUFACTURER' } });
   }
 };
 
@@ -241,6 +280,20 @@ const distributorService = {
     getSupplyChainPartners: (distributorId) => {
       return api.get(`/distributor/partners/${distributorId}`);
     },
+    getAvailableChurnedItems: () => {
+        return api.get('/recycle/distributor/available-items');
+      },
+      createRecyclingTransport: (transportData) => {
+        return api.post('/recycle/distributor/transport/create', transportData);
+      },
+      recordRecyclePickup: (transportId) => {
+        // This can likely use the existing method if it already exists
+        return api.post(`/recycle/distributor/transport/${transportId}/pickup`);
+      },
+      recordRecycleDelivery: (transportId) => {
+        // This can likely use the existing method if it already exists
+        return api.post(`/recycle/distributor/transport/${transportId}/delivery`);
+      }
   };
 
 // Supply Chain Services

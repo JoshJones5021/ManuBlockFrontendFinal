@@ -70,13 +70,15 @@ const Sidebar = () => {
           { path: '/manufacturer/products', label: 'Products', icon: '🛠️' },
           { path: '/manufacturer/material-requests', label: 'Request Materials', icon: '📋' },
           { path: '/manufacturer/production', label: 'Production', icon: '🏭' },
-          { path: '/manufacturer/orders', label: 'Orders', icon: '🧾' }
+          { path: '/manufacturer/orders', label: 'Orders', icon: '🧾' },
+          { path: '/manufacturer/recycling', label: 'Recycling', icon: '♻️' }
         ];
         
       case 'DISTRIBUTOR':
         return [
           ...items,
-          { path: '/distributor/transports', label: 'All Transports', icon: '🚚' }
+          { path: '/distributor/transports', label: 'All Transports', icon: '🚚' },
+          { path: '/distributor/recycling', label: 'Recycling', icon: '♻️' }
         ];
         
       case 'CUSTOMER':
@@ -84,7 +86,8 @@ const Sidebar = () => {
           ...items,
           { path: '/customer/products', label: 'Browse Products', icon: '🛒' },
           { path: '/customer/orders', label: 'My Orders', icon: '📋' },
-          { path: '/customer/tracking', label: 'Track Orders', icon: '🔍' }
+          { path: '/customer/tracking', label: 'Track Orders', icon: '🔍' },
+          { path: '/customer/recycling', label: 'Recycling', icon: '♻️' }
         ];
         
       default:

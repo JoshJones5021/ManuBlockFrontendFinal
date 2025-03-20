@@ -208,7 +208,7 @@ const CustomerDashboard = () => {
       </div>
       
       {/* Featured Products */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-800">Featured Products</h2>
           <Link to="/customer/products" className="text-blue-600 hover:text-blue-800 text-sm">
@@ -247,6 +247,23 @@ const CustomerDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Recycling */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">Recycling</h2>
+                <Link to="/customer/recycling" className="text-blue-600 hover:text-blue-800 text-sm">
+                View All Recycling
+                </Link>
+            </div>
+            
+            <div className="p-6 text-center">
+                <p className="text-gray-500">Return and recycle your used products for sustainability.</p>
+                <Link to="/customer/recycling" className="mt-4 inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                Start Recycling
+                </Link>
+            </div>
+        </div>
     </div>
   );
 };
