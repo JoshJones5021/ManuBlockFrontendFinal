@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { distributorService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import RecordTransportAction from './RecordTransportAction';
+import ScheduleMaterialPickup from './ScheduleMaterialPickup';
+
 
 const TransportsList = () => {
   const { currentUser } = useAuth();
@@ -18,6 +20,7 @@ const TransportsList = () => {
   const [modalAction, setModalAction] = useState('');
   const [pendingMaterialPickups, setPendingMaterialPickups] = useState([]);
   const [pendingProductDeliveries, setPendingProductDeliveries] = useState([]);
+  const [materialToSchedule, setMaterialToSchedule] = useState(null);
   const [stats, setStats] = useState({
     total: 0,
     scheduled: 0,
@@ -41,18 +44,28 @@ const TransportsList = () => {
         distributorService.getReadyMaterialRequests()
       ]);
       
-      setTransports(transportsResponse.data || []);
-      calculateStats(transportsResponse.data || []);
+      const transportsList = transportsResponse.data || [];
       
-      // Check if there are any pending material pickups
+      // Process material requests and convert them to a compatible format for the table
       const pendingMaterials = pendingMaterialsResponse.data || [];
+      setPendingMaterialPickups(pendingMaterials);
       
-      // If there are pending pickups, show a notification
-      if (pendingMaterials.length > 0) {
-        // Can set to state if you want to display this in the UI
-        // For example, to show a notification banner
-        setSuccess(`There are ${pendingMaterials.length} material requests ready for pickup.`);
-      }
+      // Convert material requests to transport-like objects
+      const materialRequestsAsTransports = pendingMaterials.map(request => ({
+        id: `material-${request.id}`, // Prefix to distinguish from regular transports
+        type: 'Material Transport',
+        status: 'Pending Scheduling',
+        trackingNumber: request.requestNumber,
+        source: { username: request.manufacturer?.username || 'Unknown Manufacturer' },
+        destination: { username: currentUser.username || 'This Distributor' },
+        scheduledPickupDate: request.requestedDeliveryDate,
+        isMaterialRequest: true, // Flag to identify this as a material request
+        originalRequest: request // Keep the original data
+      }));
+      
+      // Combine both arrays and set to state
+      setTransports([...transportsList, ...materialRequestsAsTransports]);
+      calculateStats(transportsList); // Only calculate stats for actual transports
       
       setError(null);
     } catch (err) {
@@ -141,7 +154,7 @@ const TransportsList = () => {
       activeTab === 'all' ? true :
       activeTab === 'material' ? transport.type === 'Material Transport' :
       activeTab === 'product' ? transport.type === 'Product Delivery' :
-      activeTab === 'scheduled' ? transport.status === 'Scheduled' :
+      activeTab === 'scheduled' ? (transport.status === 'Scheduled' || transport.status === 'Pending Scheduling') :
       activeTab === 'in-transit' ? transport.status === 'In Transit' :
       activeTab === 'delivered' ? transport.status === 'Delivered' : true;
     
@@ -163,6 +176,8 @@ const TransportsList = () => {
         return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">In Transit</span>;
       case 'Delivered':
         return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Delivered</span>;
+      case 'Pending Scheduling':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Ready for Pickup</span>;
       default:
         return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
     }
@@ -184,6 +199,46 @@ const TransportsList = () => {
     return diffDays;
   };
 
+  const renderActionButtons = (transport) => {
+    if (transport.isMaterialRequest) {
+      return (
+        <button
+            onClick={() => setMaterialToSchedule(transport.originalRequest)}
+            className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold py-1 px-2 rounded"
+            >
+            Schedule Pickup
+        </button>
+      );
+    }
+    
+    return (
+      <div className="flex space-x-2">
+        {transport.status === 'Scheduled' && (
+          <button
+            onClick={() => handleAction(transport, 'pickup')}
+            className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs font-semibold py-1 px-2 rounded"
+          >
+            Record Pickup
+          </button>
+        )}
+        {transport.status === 'In Transit' && (
+          <button
+            onClick={() => handleAction(transport, 'delivery')}
+            className="bg-green-100 hover:bg-green-200 text-green-800 text-xs font-semibold py-1 px-2 rounded"
+          >
+            Record Delivery
+          </button>
+        )}
+        <Link 
+          to={`/distributor/transports/${transport.id}`} 
+          className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-1 px-2 rounded"
+        >
+          View Details
+        </Link>
+      </div>
+    );
+  };
+
   if (loading && transports.length === 0) {
     return (
       <div className="p-6">
@@ -199,24 +254,6 @@ const TransportsList = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Transport Management</h1>
         <div className="flex space-x-2">
-          <Link 
-            to="/distributor/material-pickups/schedule"
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
-          >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Schedule Pickup
-          </Link>
-          <Link 
-            to="/distributor/product-deliveries/schedule"
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center"
-          >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Schedule Delivery
-          </Link>
           <button 
             onClick={fetchTransports}
             className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded flex items-center"
@@ -244,25 +281,19 @@ const TransportsList = () => {
       )}
 
       {/* Pending Pickups and Deliveries Notifications */}
-    {pendingMaterialPickups.length > 0 && (
-    <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-6">
-        <strong className="font-bold">Ready for Pickup:</strong>
-        <span className="block sm:inline"> {pendingMaterialPickups.length} material {pendingMaterialPickups.length === 1 ? 'request' : 'requests'} ready for pickup. </span>
-        <Link to="/distributor/material-pickups/schedule" className="underline font-semibold">
-        Schedule now
-        </Link>
-    </div>
-    )}
+      {pendingMaterialPickups.length > 0 && (
+      <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-6">
+          <strong className="font-bold">Ready for Pickup:</strong>
+          <span className="block sm:inline"> {pendingMaterialPickups.length} material {pendingMaterialPickups.length === 1 ? 'request' : 'requests'} ready for pickup. </span>
+      </div>
+      )}
 
-    {pendingProductDeliveries.length > 0 && (
-    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
-        <strong className="font-bold">Ready for Delivery:</strong>
-        <span className="block sm:inline"> {pendingProductDeliveries.length} product {pendingProductDeliveries.length === 1 ? 'order' : 'orders'} ready for delivery. </span>
-        <Link to="/distributor/product-deliveries/schedule" className="underline font-semibold">
-        Schedule now
-        </Link>
-    </div>
-    )}
+      {pendingProductDeliveries.length > 0 && (
+      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
+          <strong className="font-bold">Ready for Delivery:</strong>
+          <span className="block sm:inline"> {pendingProductDeliveries.length} product {pendingProductDeliveries.length === 1 ? 'order' : 'orders'} ready for delivery. </span>
+      </div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
@@ -495,12 +526,16 @@ const TransportsList = () => {
                 {filteredTransports.map((transport) => (
                   <tr key={transport.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Link 
-                        to={`/distributor/transports/${transport.id}`}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        {transport.trackingNumber}
-                      </Link>
+                      {transport.isMaterialRequest ? (
+                        <span className="text-gray-600">{transport.trackingNumber}</span>
+                      ) : (
+                        <Link 
+                          to={`/distributor/transports/${transport.id}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          {transport.trackingNumber}
+                        </Link>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -519,7 +554,11 @@ const TransportsList = () => {
                       {getStatusBadge(transport.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {transport.status === 'In Transit' ? (
+                      {transport.isMaterialRequest ? (
+                        <div className="text-sm">
+                          <p><span className="font-medium">Requested Date:</span> {formatDate(transport.scheduledPickupDate)}</p>
+                        </div>
+                      ) : transport.status === 'In Transit' ? (
                         <div className="text-sm font-semibold">
                           {calculateDaysInTransit(transport.actualPickupDate)} days
                           <div className="text-xs text-gray-500">
@@ -534,7 +573,9 @@ const TransportsList = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {transport.status === 'In Transit' ? (
+                      {transport.isMaterialRequest ? (
+                        <div className="text-sm text-gray-500">Pending scheduling</div>
+                      ) : transport.status === 'In Transit' ? (
                         <div className="text-sm">
                           {formatDate(transport.scheduledDeliveryDate)}
                         </div>
@@ -552,30 +593,7 @@ const TransportsList = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex space-x-2">
-                        {transport.status === 'Scheduled' && (
-                          <button
-                            onClick={() => handleAction(transport, 'pickup')}
-                            className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs font-semibold py-1 px-2 rounded"
-                          >
-                            Record Pickup
-                          </button>
-                        )}
-                        {transport.status === 'In Transit' && (
-                          <button
-                            onClick={() => handleAction(transport, 'delivery')}
-                            className="bg-green-100 hover:bg-green-200 text-green-800 text-xs font-semibold py-1 px-2 rounded"
-                          >
-                            Record Delivery
-                          </button>
-                        )}
-                        <Link 
-                          to={`/distributor/transports/${transport.id}`} 
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-1 px-2 rounded"
-                        >
-                          View Details
-                        </Link>
-                      </div>
+                      {renderActionButtons(transport)}
                     </td>
                   </tr>
                 ))}
@@ -648,6 +666,21 @@ const TransportsList = () => {
           </div>
         </div>
       )}
+      {/* Material Pickup Scheduling Modal */}
+        {materialToSchedule && (
+        <ScheduleMaterialPickup
+            materialRequest={materialToSchedule}
+            currentUser={currentUser}
+            onComplete={(message) => {
+            setSuccess(message);
+            setMaterialToSchedule(null);
+            fetchTransports();
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+            }}
+        />
+        )}
     </div>
   );
 };

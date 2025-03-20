@@ -39,19 +39,39 @@ const RecycledItemsProcessing = () => {
     }
   };
 
-  const handleProcessMaterials = (item) => {
+  const handleProcessMaterials = async (item) => {
     setSelectedItem(item);
     
-    // Initialize with sample materials - this would come from a materials database in reality
-    setMaterialsFormData([
-      { name: 'Aluminum', quantity: 0, unit: 'kg' },
-      { name: 'Plastic', quantity: 0, unit: 'kg' },
-      { name: 'Glass', quantity: 0, unit: 'kg' },
-      { name: 'Circuit Board', quantity: 0, unit: 'kg' },
-      { name: 'Copper Wire', quantity: 0, unit: 'kg' }
-    ]);
-    
-    setShowMaterialsModal(true);
+    try {
+      // Fetch the original materials used to create this product
+      const response = await manufacturerService.getProductMaterials(item.id);
+      const productMaterials = response.data || [];
+      
+      // If we have materials data, use it
+      if (productMaterials.length > 0) {
+        setMaterialsFormData(productMaterials.map(material => ({
+          name: material.name,
+          quantity: 0, // Default to 0, user will specify recovered amount
+          unit: material.unit,
+          description: material.description,
+          specifications: material.specifications
+        })));
+      } else {
+        // Fallback to sample materials if product materials can't be determined
+        setMaterialsFormData([
+          { name: 'Aluminum', quantity: 0, unit: 'kg', description: 'Recycled aluminum' },
+          { name: 'Plastic', quantity: 0, unit: 'kg', description: 'Recycled plastic' },
+          { name: 'Glass', quantity: 0, unit: 'kg', description: 'Recycled glass' },
+          { name: 'Circuit Board', quantity: 0, unit: 'kg', description: 'Recycled electronics' },
+          { name: 'Copper Wire', quantity: 0, unit: 'kg', description: 'Recycled copper' }
+        ]);
+      }
+      
+      setShowMaterialsModal(true);
+    } catch (err) {
+      console.error('Error fetching product materials:', err);
+      setError('Failed to retrieve original materials for this product.');
+    }
   };
 
   const handleMaterialQuantityChange = (index, quantity) => {
@@ -77,7 +97,7 @@ const RecycledItemsProcessing = () => {
       
       await manufacturerService.processToMaterials(selectedItem.id, {
         manufacturerId: currentUser.id,
-        supplyChainId: selectedItem.supplyChainId,
+        supplyChainId: selectedItem.originalSupplyChainId, // Add this line to include the supply chain ID
         materials: materials
       });
       
@@ -93,7 +113,7 @@ const RecycledItemsProcessing = () => {
       console.error('Error processing recycled item into materials:', err);
       setError('Failed to process item into materials. Please try again.');
     }
-  };
+};
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Not specified';

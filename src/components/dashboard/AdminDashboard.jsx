@@ -211,9 +211,6 @@ const AdminDashboard = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Created By
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Blockchain Status
-                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -225,21 +222,6 @@ const AdminDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">{chain.createdBy?.username || 'Unknown'}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {chain.blockchainStatus === 'CONFIRMED' ? (
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Confirmed
-                              </span>
-                            ) : chain.blockchainStatus === 'PENDING' ? (
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                Pending
-                              </span>
-                            ) : (
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                Failed
-                              </span>
-                            )}
                           </td>
                         </tr>
                       ))}

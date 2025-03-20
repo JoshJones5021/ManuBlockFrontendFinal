@@ -186,6 +186,9 @@ const manufacturerService = {
   },
   getAllManufacturers: () => {
     return api.get('/users', { params: { role: 'MANUFACTURER' } });
+  },
+  getProductMaterials: (productId) => {
+    return api.get(`/manufacturer/product/${productId}/materials`);
   }
 };
 

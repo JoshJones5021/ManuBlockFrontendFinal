@@ -149,34 +149,43 @@ const CreateProductionBatchModal = ({
                           >
                             <option value="">Select a material batch</option>
                             {materialInventory
-                              .filter(invMaterial => 
-                                invMaterial.id === material.materialId && 
-                                invMaterial.itemType === "allocated-material"
-                              )
-                              .map((invMaterial) => (
+                            .filter(invMaterial => {
+                                // Get the base material name by removing " (Recycled)" if present
+                                const baseMaterialName = materialInfo?.materialName || '';
+                                const invBaseName = invMaterial.name.replace(' (Recycled)', '');
+                                
+                                // Show materials that match either by ID or by base name
+                                return invMaterial.id === material.materialId || 
+                                    (invBaseName === baseMaterialName);
+                            })
+                            .map((invMaterial) => (
                                 <option 
-                                  key={invMaterial.blockchainItemId} 
-                                  value={invMaterial.blockchainItemId}
-                                  disabled={invMaterial.quantity < totalRequired}
+                                key={invMaterial.blockchainItemId} 
+                                value={invMaterial.blockchainItemId}
+                                disabled={invMaterial.quantity < totalRequired}
                                 >
-                                  {invMaterial.name} - Batch ID: {invMaterial.blockchainItemId} - Available: {invMaterial.quantity} {invMaterial.unit} 
-                                  {invMaterial.quantity < totalRequired ? ' (Insufficient quantity)' : ''}
+                                {invMaterial.name} - Batch ID: {invMaterial.blockchainItemId} - Available: {invMaterial.quantity} {invMaterial.unit} 
+                                {invMaterial.quantity < totalRequired ? ' (Insufficient quantity)' : ''}
                                 </option>
-                              ))}
+                            ))}
                             {!materialInventory.some(m => 
-                              m.id === material.materialId && 
-                              m.itemType === "allocated-material"
+                            m.id === material.materialId && 
+                            (m.itemType === "allocated-material" || m.itemType === "recycled-material")
                             ) && (
-                              <option disabled>No allocated material batches available</option>
+                            <option disabled>No material batches available</option>
                             )}
                           </select>
                           {/* Show a warning if no material batches have enough quantity */}
                           {materialInventory.some(m => m.id === material.materialId) && 
-                            !materialInventory.some(m => m.id === material.materialId && m.quantity >= totalRequired) && (
+                            !materialInventory.some(m => 
+                                m.id === material.materialId && 
+                                (m.itemType === "allocated-material" || m.itemType === "recycled-material") && 
+                                m.quantity >= totalRequired
+                            ) && (
                             <p className="text-red-500 text-xs italic mt-1">
-                              Warning: None of your material batches have sufficient quantity. Request more materials from suppliers.
+                                Warning: None of your material batches have sufficient quantity. Request more materials from suppliers.
                             </p>
-                          )}
+                            )}
                         </div>
                         
                         {/* Hidden input for quantity - we'll set this automatically */}

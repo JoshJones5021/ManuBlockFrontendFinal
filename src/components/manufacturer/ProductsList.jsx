@@ -440,9 +440,6 @@ const filterMaterialsByChain = (allMaterials, chainId) => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Blockchain Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -497,22 +494,6 @@ const filterMaterialsByChain = (allMaterials, chainId) => {
                       ) : (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                           Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {product.blockchainItemId ? (
-                        <div>
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Tracked
-                          </span>
-                          <div className="text-xs text-gray-500 mt-1">
-                            ID: {product.blockchainItemId}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          Not Tracked
                         </span>
                       )}
                     </td>
