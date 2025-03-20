@@ -1,14 +1,26 @@
-// src/components/supply-chain/CustomNode.jsx - Updated with left/right handles
+// src/components/supply-chain/CustomNode.jsx - Updated with authorization status
 import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 
 const CustomNode = ({ data, selected }) => {
   // Get status color for the node
   const getStatusColor = () => {
+    // Blockchain authorization status takes precedence if we have an assigned user
+    if (data.assignedUserId) {
+      if (data.isAuthorized === true) {
+        return 'border-green-500 bg-green-50';
+      } else if (data.isAuthorized === false) {
+        return 'border-yellow-500 bg-yellow-50';
+      }
+    }
+    
+    // Fall back to regular status colors
     switch (data.status) {
       case 'active':
+      case 'authorized':
         return 'border-green-500 bg-green-50';
       case 'pending':
+      case 'pending_authorization':
         return 'border-yellow-500 bg-yellow-50';
       case 'completed':
         return 'border-blue-500 bg-blue-50';
@@ -41,6 +53,21 @@ const CustomNode = ({ data, selected }) => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+  
+  // Get status display text
+  const getStatusText = () => {
+    // Show blockchain authorization status if user is assigned
+    if (data.assignedUserId) {
+      if (data.isAuthorized === true) {
+        return 'blockchain authorized';
+      } else if (data.isAuthorized === false) {
+        return 'pending authorization';
+      }
+    }
+    
+    // Otherwise show the normal status
+    return data.status;
   };
 
   return (
@@ -75,6 +102,8 @@ const CustomNode = ({ data, selected }) => {
       
       <div className="text-xs">
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          data.isAuthorized === true ? 'bg-green-100 text-green-800' :
+          data.isAuthorized === false ? 'bg-yellow-100 text-yellow-800' :
           data.status === 'active' ? 'bg-green-100 text-green-800' :
           data.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
           data.status === 'completed' ? 'bg-blue-100 text-blue-800' :
@@ -85,9 +114,30 @@ const CustomNode = ({ data, selected }) => {
           data.status === 'rejected' ? 'bg-pink-100 text-pink-800' :
           'bg-gray-100 text-gray-800'
         }`}>
-          {data.status}
+          {getStatusText()}
         </span>
       </div>
+      
+      {/* Add blockchain icon for assigned users */}
+      {data.assignedUserId && (
+        <div className="mt-2 text-xs flex items-center justify-center">
+          {data.isAuthorized === true ? (
+            <span className="text-green-600 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              </svg>
+              Blockchain verified
+            </span>
+          ) : (
+            <span className="text-yellow-600 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              Awaiting verification
+            </span>
+          )}
+        </div>
+      )}
       
       {/* Source handle on the right side */}
       <Handle 

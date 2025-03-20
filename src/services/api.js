@@ -13,7 +13,10 @@ const adminService = {
   },
   assignRole: (userId, role) => {
     return api.post(`/users/${userId}/assign-role?role=${role}`);
-  }
+  },
+  getNodeAuthorizationStatus: async (chainId) => {
+    return api.get(`/node-authorization/supply-chain/${chainId}`);
+  },
 };
 
 // Customer Services
@@ -394,7 +397,7 @@ const blockchainService = {
     },
     getNodeAssociations: () => {
       return api.get('/node-status/associations');
-    }
+    },
   }
 
 export { 

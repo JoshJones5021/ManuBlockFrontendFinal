@@ -49,6 +49,42 @@ const SupplyChainView = () => {
   const [users, setUsers] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
   const [isSupplyChainFinalized, setIsSupplyChainFinalized] = useState(false);
+  const [authCheckLoading, setAuthCheckLoading] = useState(false);
+
+  const checkNodeAuthorizationStatus = useCallback(async () => {
+    if (!chainId || !isSupplyChainFinalized) return;
+    
+    try {
+      setAuthCheckLoading(true);
+      
+      // Use your api service instead of direct axios call
+      const response = await adminService.getNodeAuthorizationStatus(chainId);
+      
+      if (response.data && Array.isArray(response.data)) {
+        // Update nodes with authorization status
+        setNodes(currentNodes => 
+          currentNodes.map(node => {
+            const nodeData = response.data.find(n => n.id.toString() === node.id);
+            if (nodeData && node.data.assignedUserId) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  isAuthorized: nodeData.authorized
+                }
+              };
+            }
+            return node;
+          })
+        );
+      }
+    } catch (err) {
+      console.error('Error checking node authorization status:', err);
+      setError('Failed to check blockchain authorization status.');
+    } finally {
+      setAuthCheckLoading(false);
+    }
+  }, [chainId, isSupplyChainFinalized, setNodes]);
 
   // Actual node deletion
   const deleteNode = useCallback(async (nodeId) => {
@@ -107,7 +143,8 @@ const SupplyChainView = () => {
       const supplyChainData = response.data;
       
       setSupplyChain(supplyChainData);
-      setIsSupplyChainFinalized(supplyChainData.blockchainStatus === 'FINALIZED');
+      const isFinalized = supplyChainData.blockchainStatus === 'FINALIZED';
+      setIsSupplyChainFinalized(isFinalized);
       
       // Transform nodes and edges for ReactFlow
       const formattedNodes = supplyChainData.nodes.map(node => ({
@@ -118,7 +155,8 @@ const SupplyChainView = () => {
           label: node.name,
           role: node.role, 
           status: node.status,
-          assignedUserId: node.assignedUserId
+          assignedUserId: node.assignedUserId,
+          isAuthorized: undefined // Initialize authorization status as undefined
         },
         // Make nodes not draggable if supply chain is finalized
         draggable: supplyChainData.blockchainStatus !== 'FINALIZED'
@@ -143,13 +181,20 @@ const SupplyChainView = () => {
       
       setNodes(formattedNodes);
       setEdges(formattedEdges);
+      
+      // If chain is already finalized, check authorization status
+      if (isFinalized) {
+        setTimeout(() => {
+          checkNodeAuthorizationStatus();
+        }, 500);
+      }
     } catch (err) {
       console.error('Error fetching supply chain:', err);
       setError('Failed to load supply chain details. Please try again later.');
     } finally {
       setLoading(false);
     }
-  }, [chainId, setNodes, setEdges]);
+  }, [chainId, setNodes, setEdges, checkNodeAuthorizationStatus]);
 
   // Fetch users for assignment
   const fetchUsers = useCallback(async () => {
@@ -188,6 +233,20 @@ const SupplyChainView = () => {
     },
     [chainId, isSupplyChainFinalized]
   );
+
+  useEffect(() => {
+    if (isSupplyChainFinalized) {
+      // Initial check
+      checkNodeAuthorizationStatus();
+      
+      // Set up periodic checking
+      const intervalId = setInterval(() => {
+        checkNodeAuthorizationStatus();
+      }, 30000); // Check every 30 seconds
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [isSupplyChainFinalized, checkNodeAuthorizationStatus]);
 
   // Modified to prevent node editing if finalized
   const onNodeClick = useCallback(
@@ -371,39 +430,24 @@ const SupplyChainView = () => {
   // Finalize the supply chain
   const finalizeSupplyChain = useCallback(async () => {
     try {
-      // Check if there are any orphaned nodes
-      const orphanedNodes = nodes.filter(node => 
-        !edges.some(edge => 
-          edge.source === node.id || edge.target === node.id
-        )
-      );
-      
-      if (orphanedNodes.length > 0) {
-        setError(`There are ${orphanedNodes.length} disconnected nodes. Please connect or remove them before finalizing.`);
-        return;
-      }
+      // Your existing code...
       
       await supplyChainService.finalizeSupplyChain(chainId);
       setIsSupplyChainFinalized(true);
       
-      // Update all nodes to be non-draggable
-      setNodes(nodes => nodes.map(node => ({
-        ...node,
-        draggable: false
-      })));
-      
-      // Update all edges to be non-interactable
-      setEdges(edges => edges.map(edge => ({
-        ...edge,
-        interactable: false
-      })));
+      // Your existing code for updating nodes and edges...
       
       setError(null);
+      
+      // Check authorization status after finalizing
+      setTimeout(() => {
+        checkNodeAuthorizationStatus();
+      }, 3000); // Give blockchain some time to process
     } catch (err) {
       console.error('Error finalizing supply chain:', err);
       setError('Failed to finalize supply chain.');
     }
-  }, [chainId, nodes, edges, setNodes, setEdges]);
+  }, [chainId, nodes, edges, setNodes, setEdges, checkNodeAuthorizationStatus]);
 
   // Clear the error message after 5 seconds
   useEffect(() => {
