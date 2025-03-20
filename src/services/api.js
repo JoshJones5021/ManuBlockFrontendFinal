@@ -340,34 +340,62 @@ const supplyChainService = {
 
 // Blockchain and Item Tracing Services
 const blockchainService = {
-  // Tracing items
-  getItemsBySupplyChain: (supplyChainId) => {
-    return api.get(`/tracing/items/${supplyChainId}`);
-  },
-  getItemsByOwner: (ownerId) => {
-    return api.get(`/tracing/items/owner/${ownerId}`);
-  },
-  getBlockchainItemDetails: (itemId) => {
-    return api.get(`/tracing/blockchain/item/${itemId}`);
-  },
-  getBlockchainTransactionDetails: (txHash) => {
-    return api.get(`/tracing/blockchain/transaction/${txHash}`);
-  },
-  traceItemHistory: (itemId) => {
-    return api.get(`/tracing/item/${itemId}/trace`);
-  },
-  
-  // Node status management
-  updateNodeStatus: (nodeId, status) => {
-    return api.put(`/node-status/${nodeId}`, { status });
-  },
-  associateNodeWithItem: (nodeId, blockchainItemId) => {
-    return api.post(`/node-status/${nodeId}/associate/${blockchainItemId}`);
-  },
-  syncAllNodeStatuses: () => {
-    return api.post('/node-status/sync');
+    // Tracing items
+    getItemsBySupplyChain: (supplyChainId) => {
+      return api.get(`/tracing/items/${supplyChainId}`);
+    },
+    getAllBlockchainTransactions: () => {
+        return api.get('/blockchain/transactions/all');
+    },
+    getItemsByOwner: (ownerId) => {
+      return api.get(`/tracing/items/owner/${ownerId}`);
+    },
+    getBlockchainItemDetails: (itemId) => {
+      return api.get(`/tracing/blockchain/item/${itemId}`);
+    },
+    getItemParents: (itemId) => {
+      return api.get(`/tracing/blockchain/item/${itemId}/parents`);
+    },
+    getItemChildren: (itemId) => {
+      return api.get(`/tracing/blockchain/item/${itemId}/children`);
+    },
+    traceItemHistory: (itemId) => {
+      return api.get(`/tracing/item/${itemId}/trace`);
+    },
+    
+    // New methods for enhanced blockchain traceability
+    getTransactionsBySupplyChain: (supplyChainId) => {
+      return api.get(`/blockchain/transactions/supply-chain/${supplyChainId}`);
+    },
+    getItemTransactionTimeline: (itemId) => {
+      return api.get(`/blockchain/transactions/item-timeline/${itemId}`);
+    },
+    getBlockchainTransactionDetails: (txHash) => {
+      // For individual transaction details
+      return api.get(`/tracing/blockchain/transaction/${txHash}`);
+    },
+    getAllTransactions: () => {
+      // For debugging or admin purposes - get all transactions
+      return api.get(`/blockchain/transactions`);
+    },
+    
+    // Node status management
+    updateNodeStatus: (nodeId, status) => {
+      return api.put(`/node-status/${nodeId}`, { status });
+    },
+    associateNodeWithItem: (nodeId, blockchainItemId) => {
+      return api.post(`/node-status/${nodeId}/associate/${blockchainItemId}`);
+    },
+    removeNodeAssociation: (nodeId) => {
+      return api.delete(`/node-status/${nodeId}/associate`);
+    },
+    syncAllNodeStatuses: () => {
+      return api.post('/node-status/sync');
+    },
+    getNodeAssociations: () => {
+      return api.get('/node-status/associations');
+    }
   }
-};
 
 export { 
   adminService,
