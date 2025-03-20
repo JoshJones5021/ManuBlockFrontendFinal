@@ -8,13 +8,13 @@ const Register = () => {
     username: '',
     email: '',
     password: '',
-    role: 'CUSTOMER' // Default role
+    role: 'CUSTOMER', // Default role
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [roles, setRoles] = useState([]);
   const [rolesLoading, setRolesLoading] = useState(true);
-  
+
   const navigate = useNavigate();
   const { register } = useAuth();
 
@@ -36,22 +36,24 @@ const Register = () => {
     fetchRoles();
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
     setFormData(prevData => ({
       ...prevData,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
       await register(formData);
-      navigate('/login', { state: { message: 'Registration successful! Please login.' } });
+      navigate('/login', {
+        state: { message: 'Registration successful! Please login.' },
+      });
     } catch (err) {
       if (err.response && err.response.data) {
         // Handle validation errors from backend
@@ -59,7 +61,9 @@ const Register = () => {
           const errorMessages = Object.values(err.response.data).join(', ');
           setError(errorMessages);
         } else {
-          setError(err.response.data.error || 'Registration failed. Please try again.');
+          setError(
+            err.response.data.error || 'Registration failed. Please try again.'
+          );
         }
       } else {
         setError('Registration failed. Please try again.');
@@ -72,17 +76,22 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Register for ManuBlock</h2>
-        
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+          Register for ManuBlock
+        </h2>
+
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="username"
+            >
               Username
             </label>
             <input
@@ -97,9 +106,12 @@ const Register = () => {
               maxLength={30}
             />
           </div>
-          
+
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="email"
+            >
               Email
             </label>
             <input
@@ -112,9 +124,12 @@ const Register = () => {
               required
             />
           </div>
-          
+
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="password"
+            >
               Password
             </label>
             <input
@@ -127,11 +142,16 @@ const Register = () => {
               required
               minLength={6}
             />
-            <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Password must be at least 6 characters long
+            </p>
           </div>
-          
+
           <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="role">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="role"
+            >
               Role
             </label>
             <select
@@ -153,7 +173,7 @@ const Register = () => {
               )}
             </select>
           </div>
-          
+
           <div className="flex flex-col gap-4">
             <button
               type="submit"
@@ -164,7 +184,7 @@ const Register = () => {
             >
               {loading ? 'Registering...' : 'Register'}
             </button>
-            
+
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 Already have an account?{' '}

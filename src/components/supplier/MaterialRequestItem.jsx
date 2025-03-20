@@ -1,4 +1,3 @@
-// src/components/supplier/MaterialRequestItem.jsx
 import React, { useState } from 'react';
 import { supplierService } from '../../services/api';
 
@@ -7,17 +6,17 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
   const [approvals, setApprovals] = useState(
     request.items.map(item => ({
       itemId: item.id,
-      approvedQuantity: item.requestedQuantity
+      approvedQuantity: item.requestedQuantity,
     }))
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const handleApprovalChange = (itemId, value) => {
-    setApprovals(prev => 
-      prev.map(approval => 
-        approval.itemId === itemId 
-          ? { ...approval, approvedQuantity: parseInt(value) || 0 } 
+    setApprovals(prev =>
+      prev.map(approval =>
+        approval.itemId === itemId
+          ? { ...approval, approvedQuantity: parseInt(value) || 0 }
           : approval
       )
     );
@@ -27,21 +26,19 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Check if any quantities exceed the requested amount
+
       const invalidApproval = approvals.find((approval, index) => {
         const requestedItem = request.items[index];
         return approval.approvedQuantity > requestedItem.requestedQuantity;
       });
-      
+
       if (invalidApproval) {
         setError('Approved quantity cannot exceed requested quantity');
         return;
       }
-      
-      // Process the approval
+
       await supplierService.approveRequest(request.id, approvals);
-      
+
       if (onApprove) {
         onApprove(request.id);
       }
@@ -57,15 +54,14 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Set all approval quantities to 0
+
       const rejections = approvals.map(approval => ({
         ...approval,
-        approvedQuantity: 0
+        approvedQuantity: 0,
       }));
-      
+
       await supplierService.approveRequest(request.id, rejections);
-      
+
       if (onReject) {
         onReject(request.id);
       }
@@ -77,39 +73,44 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
     }
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4">
-      <div 
+      <div
         className="p-4 cursor-pointer flex justify-between items-center hover:bg-gray-50"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div>
           <h3 className="font-semibold text-lg">{request.requestNumber}</h3>
           <p className="text-sm text-gray-600">
-            From: {request.manufacturer.username} • 
-            Requested: {formatDate(request.createdAt)}
+            From: {request.manufacturer.username} • Requested:{' '}
+            {formatDate(request.createdAt)}
           </p>
         </div>
         <div className="flex items-center">
           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 mr-2">
             {request.status}
           </span>
-          <svg 
-            className={`w-5 h-5 transition-transform ${isExpanded ? 'transform rotate-180' : ''}`} 
-            fill="none" 
-            viewBox="0 0 24 24" 
+          <svg
+            className={`w-5 h-5 transition-transform ${isExpanded ? 'transform rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </div>
       </div>
-      
+
       {isExpanded && (
         <div className="p-4 border-t border-gray-200">
           {error && (
@@ -117,17 +118,23 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
               {error}
             </div>
           )}
-          
+
           <div className="mb-4">
             <h4 className="font-medium mb-2">Request Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600">Requested Delivery Date:</p>
-                <p className="font-medium">{formatDate(request.requestedDeliveryDate)}</p>
+                <p className="text-sm text-gray-600">
+                  Requested Delivery Date:
+                </p>
+                <p className="font-medium">
+                  {formatDate(request.requestedDeliveryDate)}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Supply Chain:</p>
-                <p className="font-medium">{request.supplyChain?.name || 'N/A'}</p>
+                <p className="font-medium">
+                  {request.supplyChain?.name || 'N/A'}
+                </p>
               </div>
               {request.notes && (
                 <div className="md:col-span-2">
@@ -137,7 +144,7 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
               )}
             </div>
           </div>
-          
+
           <h4 className="font-medium mb-2">Requested Materials</h4>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -158,8 +165,12 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
                 {request.items.map((item, index) => (
                   <tr key={item.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.material.name}</div>
-                      <div className="text-sm text-gray-500">{item.material.specifications}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {item.material.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {item.material.specifications}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -172,17 +183,21 @@ const MaterialRequestItem = ({ request, onApprove, onReject }) => {
                         min="0"
                         max={item.requestedQuantity}
                         value={approvals[index]?.approvedQuantity || 0}
-                        onChange={(e) => handleApprovalChange(item.id, e.target.value)}
+                        onChange={e =>
+                          handleApprovalChange(item.id, e.target.value)
+                        }
                         className="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                       />
-                      <span className="ml-2 text-sm text-gray-500">{item.material.unit}</span>
+                      <span className="ml-2 text-sm text-gray-500">
+                        {item.material.unit}
+                      </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          
+
           <div className="mt-6 flex justify-end space-x-4">
             <button
               onClick={handleReject}

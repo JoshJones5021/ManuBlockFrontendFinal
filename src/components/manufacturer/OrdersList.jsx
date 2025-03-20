@@ -19,20 +19,19 @@ const OrdersList = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      
+
       const response = await manufacturerService.getOrders(currentUser.id);
-      
+
       if (response?.data && Array.isArray(response.data)) {
-        // Sort orders by creation date (newest first)
-        const sortedOrders = response.data.sort((a, b) => 
-          new Date(b.createdAt) - new Date(a.createdAt)
+        const sortedOrders = response.data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
         setOrders(sortedOrders);
       } else {
         console.warn('API did not return an array for orders', response);
         setOrders([]);
       }
-      
+
       setError(null);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -45,7 +44,7 @@ const OrdersList = () => {
   const fetchProducts = async () => {
     try {
       const response = await manufacturerService.getProducts(currentUser.id);
-      
+
       if (response?.data && Array.isArray(response.data)) {
         setProducts(response.data);
       } else {
@@ -57,71 +56,93 @@ const OrdersList = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
   };
 
-  // Function to get status badge styling
-  const getStatusBadge = (status) => {
+  const getStatusBadge = status => {
     switch (status) {
       case 'Requested':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Requested</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+            Requested
+          </span>
+        );
       case 'In Production':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">In Production</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+            In Production
+          </span>
+        );
       case 'Ready for Shipment':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">Ready for Shipment</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+            Ready for Shipment
+          </span>
+        );
       case 'In Transit':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">In Transit</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+            In Transit
+          </span>
+        );
       case 'Delivered':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Delivered</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+            Delivered
+          </span>
+        );
       case 'Completed':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+            Completed
+          </span>
+        );
       case 'Cancelled':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Cancelled</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+            Cancelled
+          </span>
+        );
       default:
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+            {status}
+          </span>
+        );
     }
   };
 
-  // Check if an order can be fulfilled from inventory
-  const canFulfillFromInventory = (order) => {
+  const canFulfillFromInventory = order => {
     if (!order || !order.items || !Array.isArray(order.items)) return false;
-    
-    // Check if all ordered products have sufficient inventory
+
     return order.items.every(item => {
-      // Find the matching product in our products list
       const product = products.find(p => p.id === item.productId);
       if (!product) return false;
-      
-      // Check if there's enough inventory to fulfill this item
+
       return product.availableQuantity >= item.quantity;
     });
   };
 
-  // Handle fulfilling an order from existing inventory
-  const handleFulfillOrder = (orderId) => {
-    // Navigate to the order details page where the fulfillment process can be completed
+  const handleFulfillOrder = orderId => {
     window.location.href = `/manufacturer/orders/${orderId}`;
   };
 
-  // Handle creating production batches for an order when inventory is insufficient
-  const handleCreateProduction = (orderId) => {
-    // Navigate to the production batches page with order information
+  const handleCreateProduction = orderId => {
     window.location.href = `/manufacturer/production?orderId=${orderId}`;
   };
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-6">Manufacturer Orders</h1>
-      
+
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
           {success}
         </div>
       )}
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
           {error}
@@ -134,10 +155,22 @@ const OrdersList = () => {
         </div>
       ) : orders.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <svg className="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          <svg
+            className="h-16 w-16 text-gray-400 mx-auto mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+            />
           </svg>
-          <p className="text-gray-500 mb-4">No orders found for manufacturing.</p>
+          <p className="text-gray-500 mb-4">
+            No orders found for manufacturing.
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -169,13 +202,15 @@ const OrdersList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {orders.map((order) => {
+                {orders.map(order => {
                   const canFulfill = canFulfillFromInventory(order);
-                  
+
                   return (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {order.orderNumber}
+                        </div>
                         {order.blockchainTxHash && (
                           <div className="text-xs text-gray-500">
                             TX: {order.blockchainTxHash.substring(0, 10)}...
@@ -188,10 +223,13 @@ const OrdersList = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{formatDate(order.createdAt)}</div>
+                        <div className="text-sm text-gray-900">
+                          {formatDate(order.createdAt)}
+                        </div>
                         {order.requestedDeliveryDate && (
                           <div className="text-xs text-gray-500">
-                            Requested by: {formatDate(order.requestedDeliveryDate)}
+                            Requested by:{' '}
+                            {formatDate(order.requestedDeliveryDate)}
                           </div>
                         )}
                       </td>
@@ -199,22 +237,48 @@ const OrdersList = () => {
                         {getStatusBadge(order.status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{order.items?.length || 0} items</div>
+                        <div className="text-sm text-gray-900">
+                          {order.items?.length || 0} items
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {order.status === 'Requested' ? (
-                          <div className={canFulfill ? 'text-green-600' : 'text-red-600'}>
+                          <div
+                            className={
+                              canFulfill ? 'text-green-600' : 'text-red-600'
+                            }
+                          >
                             {canFulfill ? (
                               <span className="flex items-center text-sm">
-                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                <svg
+                                  className="h-4 w-4 mr-1"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M5 13l4 4L19 7"
+                                  />
                                 </svg>
                                 In Stock
                               </span>
                             ) : (
                               <span className="flex items-center text-sm">
-                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                <svg
+                                  className="h-4 w-4 mr-1"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
                                 </svg>
                                 Insufficient
                               </span>
@@ -232,7 +296,7 @@ const OrdersList = () => {
                           >
                             View Details
                           </Link>
-                          
+
                           {order.status === 'Requested' && (
                             <>
                               {canFulfill ? (
@@ -244,7 +308,9 @@ const OrdersList = () => {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => handleCreateProduction(order.id)}
+                                  onClick={() =>
+                                    handleCreateProduction(order.id)
+                                  }
                                   className="text-blue-600 hover:text-blue-900"
                                 >
                                   Create Production

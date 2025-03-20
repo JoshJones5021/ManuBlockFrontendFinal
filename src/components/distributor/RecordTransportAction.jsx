@@ -1,4 +1,3 @@
-// src/components/distributor/RecordTransportAction.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { distributorService } from '../../services/api';
@@ -11,28 +10,27 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
 
   const handleAction = async () => {
     if (!transport) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-  
-      // 🔥 Conditional logic for Recycling Pickup vs Normal
+
       if (actionType === 'pickup') {
         if (transport.type === 'Recycling Pickup') {
-          await distributorService.recordRecyclePickup(transport.id);  // ♻️ Recycling endpoint
+          await distributorService.recordRecyclePickup(transport.id); 
         } else {
-          await distributorService.recordPickup(transport.id);         // 📦 Normal endpoint
+          await distributorService.recordPickup(transport.id);
         }
       } else if (actionType === 'delivery') {
         if (transport.type === 'Recycling Pickup') {
-          await distributorService.recordRecycleDelivery(transport.id);  // ♻️ Recycling endpoint
+          await distributorService.recordRecycleDelivery(transport.id);
         } else {
-          await distributorService.recordDelivery(transport.id);         // 📦 Normal endpoint
+          await distributorService.recordDelivery(transport.id); 
         }
       }
-  
+
       setShowConfirmation(false);
-  
+
       if (onComplete) {
         onComplete();
       } else {
@@ -40,14 +38,15 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
       }
     } catch (err) {
       console.error(`Error recording ${actionType}:`, err);
-      setError(err.message || `Failed to record ${actionType}. Please try again.`);
+      setError(
+        err.message || `Failed to record ${actionType}. Please try again.`
+      );
     } finally {
       setLoading(false);
     }
   };
-  
 
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
   };
@@ -74,40 +73,40 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
             <h2 className="text-xl font-semibold mb-4">
               {actionType === 'pickup' ? 'Confirm Pickup' : 'Confirm Delivery'}
             </h2>
-            
+
             <p className="mb-4">
               {actionType === 'pickup'
                 ? `Are you sure you want to record pickup for transport ${transport.trackingNumber}?`
-                : `Are you sure you want to record delivery for transport ${transport.trackingNumber}?`
-              }
+                : `Are you sure you want to record delivery for transport ${transport.trackingNumber}?`}
             </p>
-            
+
             <div className="mb-4 bg-gray-50 p-3 rounded-md">
-              <p><span className="font-medium">Transport Type:</span> {transport.type}</p>
+              <p>
+                <span className="font-medium">Transport Type:</span>{' '}
+                {transport.type}
+              </p>
               <p>
                 <span className="font-medium">
                   {actionType === 'pickup' ? 'Pickup From:' : 'Delivery To:'}
                 </span>{' '}
-                {actionType === 'pickup' 
+                {actionType === 'pickup'
                   ? transport.source?.username || 'Unknown'
-                  : transport.destination?.username || 'Unknown'
-                }
+                  : transport.destination?.username || 'Unknown'}
               </p>
               <p>
                 <span className="font-medium">Scheduled Date:</span>{' '}
                 {actionType === 'pickup'
                   ? formatDate(transport.scheduledPickupDate)
-                  : formatDate(transport.scheduledDeliveryDate)
-                }
+                  : formatDate(transport.scheduledDeliveryDate)}
               </p>
             </div>
-            
+
             {error && (
               <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
                 {error}
               </div>
             )}
-            
+
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowConfirmation(false)}

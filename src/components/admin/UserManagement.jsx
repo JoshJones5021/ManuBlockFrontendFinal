@@ -12,7 +12,10 @@ const UserManagement = () => {
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [roles, setRoles] = useState([]);
-  const [deleteConfirmation, setDeleteConfirmation] = useState({ show: false, userId: null });
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    show: false,
+    userId: null,
+  });
 
   // Load users and available roles
   useEffect(() => {
@@ -44,7 +47,7 @@ const UserManagement = () => {
   }, []);
 
   // Show role assignment modal
-  const handleAssignRole = (user) => {
+  const handleAssignRole = user => {
     setSelectedUser(user);
     setShowRoleModal(true);
   };
@@ -54,14 +57,12 @@ const UserManagement = () => {
     try {
       setLoading(true);
       await adminService.assignRole(userId, role);
-      
+
       // Update the user in the state
-      setUsers(prev => 
-        prev.map(user => 
-          user.id === userId ? { ...user, role } : user
-        )
+      setUsers(prev =>
+        prev.map(user => (user.id === userId ? { ...user, role } : user))
       );
-      
+
       setShowRoleModal(false);
       setSelectedUser(null);
       setError(null);
@@ -74,9 +75,9 @@ const UserManagement = () => {
   };
 
   // Handle user deletion
-  const deleteUser = async (userId) => {
+  const deleteUser = async userId => {
     if (userId === currentUser.id) {
-      setError("You cannot delete your own account!");
+      setError('You cannot delete your own account!');
       setDeleteConfirmation({ show: false, userId: null });
       return;
     }
@@ -84,18 +85,22 @@ const UserManagement = () => {
     try {
       setLoading(true);
       const response = await adminService.deleteUser(userId);
-      
+
       if (response.status === 200) {
         // Remove the user from the state
         setUsers(prev => prev.filter(user => user.id !== userId));
         setError(null);
       } else {
         // Handle other response types, e.g., 400 when user is still assigned
-        setError(response.data.error || 'Failed to delete user. Unknown error.');
+        setError(
+          response.data.error || 'Failed to delete user. Unknown error.'
+        );
       }
     } catch (err) {
       console.error('Error deleting user:', err);
-      setError(err.response?.data?.error || 'Failed to delete user. Please try again.');
+      setError(
+        err.response?.data?.error || 'Failed to delete user. Please try again.'
+      );
     } finally {
       setLoading(false);
       setDeleteConfirmation({ show: false, userId: null });
@@ -113,13 +118,13 @@ const UserManagement = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold mb-6">User Management</h1>
-      
+
       {error && (
         <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
         </div>
       )}
-      
+
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -146,8 +151,11 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className={user.id === currentUser.id ? 'bg-blue-50' : ''}>
+              {users.map(user => (
+                <tr
+                  key={user.id}
+                  className={user.id === currentUser.id ? 'bg-blue-50' : ''}
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {user.id}
                   </td>
@@ -155,7 +163,9 @@ const UserManagement = () => {
                     <div className="text-sm font-medium text-gray-900">
                       {user.username}
                       {user.id === currentUser.id && (
-                        <span className="ml-2 text-xs text-blue-600">(You)</span>
+                        <span className="ml-2 text-xs text-blue-600">
+                          (You)
+                        </span>
                       )}
                     </div>
                   </td>
@@ -184,7 +194,9 @@ const UserManagement = () => {
                       Assign Role
                     </button>
                     <button
-                      onClick={() => setDeleteConfirmation({ show: true, userId: user.id })}
+                      onClick={() =>
+                        setDeleteConfirmation({ show: true, userId: user.id })
+                      }
                       className="text-red-600 hover:text-red-900"
                       disabled={user.id === currentUser.id}
                     >
@@ -197,7 +209,7 @@ const UserManagement = () => {
           </table>
         </div>
       </div>
-      
+
       {/* Role Assignment Modal */}
       {showRoleModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -205,13 +217,13 @@ const UserManagement = () => {
             <h2 className="text-xl font-semibold mb-4">
               Assign Role to {selectedUser.username}
             </h2>
-            
+
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
                 Select Role
               </label>
               <div className="grid grid-cols-1 gap-2">
-                {roles.map((role) => (
+                {roles.map(role => (
                   <button
                     key={role}
                     onClick={() => updateUserRole(selectedUser.id, role)}
@@ -226,7 +238,7 @@ const UserManagement = () => {
                 ))}
               </div>
             </div>
-            
+
             <div className="flex justify-end">
               <button
                 onClick={() => {
@@ -241,7 +253,7 @@ const UserManagement = () => {
           </div>
         </div>
       )}
-      
+
       {/* Delete Confirmation Modal */}
       {deleteConfirmation.show && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -249,14 +261,17 @@ const UserManagement = () => {
             <h2 className="text-xl font-semibold mb-4 text-red-600">
               Confirm Deletion
             </h2>
-            
+
             <p className="mb-6">
-              Are you sure you want to delete this user? This action cannot be undone.
+              Are you sure you want to delete this user? This action cannot be
+              undone.
             </p>
-            
+
             <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setDeleteConfirmation({ show: false, userId: null })}
+                onClick={() =>
+                  setDeleteConfirmation({ show: false, userId: null })
+                }
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
               >
                 Cancel

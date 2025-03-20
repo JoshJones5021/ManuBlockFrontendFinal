@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { manufacturerService, blockchainService, supplierService } from '../../services/api';
+import {
+  manufacturerService,
+  blockchainService,
+  supplierService,
+} from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const MaterialRequestDetails = () => {
@@ -14,28 +18,26 @@ const MaterialRequestDetails = () => {
   const [blockchainStatus, setBlockchainStatus] = useState({
     loading: false,
     data: null,
-    error: null
+    error: null,
   });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch both material request and suppliers in parallel
+ 
         const [requestResponse, suppliersResponse] = await Promise.all([
           manufacturerService.getMaterialRequestById(requestId),
-          supplierService.getAllSuppliers()
+          supplierService.getAllSuppliers(),
         ]);
-        
+
         setMaterialRequest(requestResponse.data);
         setSuppliers(suppliersResponse.data);
-        
-        // If there's a blockchain transaction hash, check its status
+
         if (requestResponse.data.blockchainTxHash) {
           fetchBlockchainInfo(requestResponse.data.blockchainTxHash);
         }
-        
+
         setError(null);
       } catch (err) {
         console.error('Error fetching material request:', err);
@@ -43,7 +45,10 @@ const MaterialRequestDetails = () => {
         console.error('Error message:', err.message);
         console.error('Error status:', err.response?.status);
         console.error('Error data:', err.response?.data);
-        setError(err.response?.data?.message || 'Failed to load material request details. Please try again later.');
+        setError(
+          err.response?.data?.message ||
+            'Failed to load material request details. Please try again later.'
+        );
       } finally {
         setLoading(false);
       }
@@ -52,33 +57,32 @@ const MaterialRequestDetails = () => {
     fetchData();
   }, [requestId]);
 
-  const fetchBlockchainInfo = async (txHash) => {
+  const fetchBlockchainInfo = async txHash => {
     try {
       setBlockchainStatus({
         ...blockchainStatus,
-        loading: true
+        loading: true,
       });
-      
-      // Fetch blockchain transaction details
-      const response = await blockchainService.getBlockchainTransactionDetails(txHash);
-      
+
+      const response =
+        await blockchainService.getBlockchainTransactionDetails(txHash);
+
       setBlockchainStatus({
         loading: false,
         data: response.data,
-        error: null
+        error: null,
       });
     } catch (err) {
       console.error('Error fetching blockchain data:', err);
       setBlockchainStatus({
         loading: false,
         data: null,
-        error: 'Failed to fetch blockchain information.'
+        error: 'Failed to fetch blockchain information.',
       });
     }
   };
 
-  // Function to get status badge styling
-  const getStatusBadgeClass = (status) => {
+  const getStatusBadgeClass = status => {
     switch (status) {
       case 'Requested':
         return 'bg-blue-100 text-blue-800';
@@ -101,8 +105,7 @@ const MaterialRequestDetails = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
   };
@@ -149,7 +152,6 @@ const MaterialRequestDetails = () => {
     );
   }
 
-  // Find the supplier for this request
   const supplier = suppliers.find(s => s.id === materialRequest.supplierId);
 
   return (
@@ -160,8 +162,18 @@ const MaterialRequestDetails = () => {
           onClick={() => navigate('/manufacturer/material-requests')}
           className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded flex items-center"
         >
-          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          <svg
+            className="h-5 w-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            ></path>
           </svg>
           Back to Requests
         </button>
@@ -171,64 +183,93 @@ const MaterialRequestDetails = () => {
       <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
         <div className="px-6 py-4 bg-gray-50 border-b">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Request #{materialRequest.requestNumber}</h2>
-            <span className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadgeClass(materialRequest.status)}`}>
+            <h2 className="text-xl font-semibold">
+              Request #{materialRequest.requestNumber}
+            </h2>
+            <span
+              className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadgeClass(materialRequest.status)}`}
+            >
               {materialRequest.status}
             </span>
           </div>
         </div>
-        
+
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Supplier</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">
+                Supplier
+              </h3>
               <p className="text-base">
                 {supplier ? supplier.username : 'Unknown Supplier'}
               </p>
             </div>
-            
+
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Request Date</h3>
-              <p className="text-base">{formatDate(materialRequest.createdAt)}</p>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">
+                Request Date
+              </h3>
+              <p className="text-base">
+                {formatDate(materialRequest.createdAt)}
+              </p>
             </div>
-            
+
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Requested Delivery</h3>
-              <p className="text-base">{materialRequest.requestedDeliveryDate ? formatDate(materialRequest.requestedDeliveryDate) : 'No date specified'}</p>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">
+                Requested Delivery
+              </h3>
+              <p className="text-base">
+                {materialRequest.requestedDeliveryDate
+                  ? formatDate(materialRequest.requestedDeliveryDate)
+                  : 'No date specified'}
+              </p>
             </div>
-            
+
             {materialRequest.actualDeliveryDate && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Actual Delivery</h3>
-                <p className="text-base text-green-600">{formatDate(materialRequest.actualDeliveryDate)}</p>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">
+                  Actual Delivery
+                </h3>
+                <p className="text-base text-green-600">
+                  {formatDate(materialRequest.actualDeliveryDate)}
+                </p>
               </div>
             )}
-            
+
             {materialRequest.relatedOrder && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Related Order</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">
+                  Related Order
+                </h3>
                 <p className="text-base">
-                  <Link to={`/manufacturer/orders/${materialRequest.relatedOrder.id}`} className="text-blue-600 hover:text-blue-800">
+                  <Link
+                    to={`/manufacturer/orders/${materialRequest.relatedOrder.id}`}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
                     #{materialRequest.relatedOrder.orderNumber}
                   </Link>
                 </p>
               </div>
             )}
-            
+
             {materialRequest.blockchainTxHash && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Blockchain Transaction</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">
+                  Blockchain Transaction
+                </h3>
                 <p className="text-base font-mono text-xs break-all">
                   {materialRequest.blockchainTxHash}
                 </p>
               </div>
             )}
           </div>
-          
+
           {materialRequest.notes && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-500 mb-1">Notes</h3>
-              <p className="text-base bg-gray-50 p-3 rounded">{materialRequest.notes}</p>
+              <p className="text-base bg-gray-50 p-3 rounded">
+                {materialRequest.notes}
+              </p>
             </div>
           )}
         </div>
@@ -239,7 +280,7 @@ const MaterialRequestDetails = () => {
         <div className="px-6 py-4 bg-gray-50 border-b">
           <h2 className="text-xl font-semibold">Requested Materials</h2>
         </div>
-        
+
         <div className="p-6">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -266,39 +307,57 @@ const MaterialRequestDetails = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {materialRequest.items.map((item) => (
+                {materialRequest.items.map(item => (
                   <tr key={item.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.material.name}</div>
-                      <div className="text-xs text-gray-500">{item.material.specifications?.substring(0, 50)}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {item.material.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {item.material.specifications?.substring(0, 50)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.requestedQuantity} {item.material.unit}</div>
+                      <div className="text-sm text-gray-900">
+                        {item.requestedQuantity} {item.material.unit}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.approvedQuantity ? (
-                        <div className="text-sm text-gray-900">{item.approvedQuantity} {item.material.unit}</div>
+                        <div className="text-sm text-gray-900">
+                          {item.approvedQuantity} {item.material.unit}
+                        </div>
                       ) : (
                         <span className="text-xs text-gray-500">Pending</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.allocatedQuantity ? (
-                        <div className="text-sm text-gray-900">{item.allocatedQuantity} {item.material.unit}</div>
+                        <div className="text-sm text-gray-900">
+                          {item.allocatedQuantity} {item.material.unit}
+                        </div>
                       ) : (
-                        <span className="text-xs text-gray-500">Not allocated</span>
+                        <span className="text-xs text-gray-500">
+                          Not allocated
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}>
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(item.status)}`}
+                      >
                         {item.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.blockchainItemId ? (
-                        <div className="text-sm font-mono">{item.blockchainItemId}</div>
+                        <div className="text-sm font-mono">
+                          {item.blockchainItemId}
+                        </div>
                       ) : (
-                        <span className="text-xs text-gray-500">Not assigned</span>
+                        <span className="text-xs text-gray-500">
+                          Not assigned
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -313,4 +372,3 @@ const MaterialRequestDetails = () => {
 };
 
 export default MaterialRequestDetails;
-                 

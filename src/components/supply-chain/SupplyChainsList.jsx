@@ -16,14 +16,13 @@ const SupplyChainsList = () => {
   const [newChainData, setNewChainData] = useState({
     name: '',
     description: '',
-    createdBy: currentUser?.id
+    createdBy: currentUser?.id,
   });
   const [hiddenChains, setHiddenChains] = useState(() => {
-    // Load hidden chains from localStorage
     const saved = localStorage.getItem('hiddenSupplyChains');
     return saved ? JSON.parse(saved) : [];
   });
-  const [filterStatus, setFilterStatus] = useState("all"); // "all", "finalized", "not-finalized"
+  const [filterStatus, setFilterStatus] = useState('all'); 
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   useEffect(() => {
@@ -31,25 +30,22 @@ const SupplyChainsList = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    // Apply filters and hide hidden chains
     if (supplyChains.length > 0) {
       let result = supplyChains;
-      
-      // Apply status filter
-      if (filterStatus === "finalized") {
-        result = result.filter(chain => chain.blockchainStatus === "FINALIZED");
-      } else if (filterStatus === "not-finalized") {
-        result = result.filter(chain => chain.blockchainStatus !== "FINALIZED");
+
+      if (filterStatus === 'finalized') {
+        result = result.filter(chain => chain.blockchainStatus === 'FINALIZED');
+      } else if (filterStatus === 'not-finalized') {
+        result = result.filter(chain => chain.blockchainStatus !== 'FINALIZED');
       }
-      
-      // Hide chains that are in the hiddenChains array
+
       result = result.filter(chain => !hiddenChains.includes(chain.id));
-      
+
       setFilteredChains(result);
     }
   }, [supplyChains, filterStatus, hiddenChains]);
 
-  // Save hidden chains to localStorage whenever it changes
+
   useEffect(() => {
     localStorage.setItem('hiddenSupplyChains', JSON.stringify(hiddenChains));
   }, [hiddenChains]);
@@ -59,11 +55,11 @@ const SupplyChainsList = () => {
     try {
       let response;
       if (currentUser.role === 'ADMIN') {
-        // Admins can see all supply chains
         response = await supplyChainService.getSupplyChains();
       } else {
-        // Other users only see chains they're part of
-        response = await supplyChainService.getSupplyChainsByUser(currentUser.id);
+        response = await supplyChainService.getSupplyChainsByUser(
+          currentUser.id
+        );
       }
       setSupplyChains(response.data);
     } catch (err) {
@@ -74,33 +70,31 @@ const SupplyChainsList = () => {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = e => {
     const { name, value } = e.target;
     setNewChainData({
       ...newChainData,
-      [name]: value
+      [name]: value,
     });
   };
 
-  const handleCreateSupplyChain = async (e) => {
+  const handleCreateSupplyChain = async e => {
     e.preventDefault();
     try {
       const payload = {
         ...newChainData,
-        createdBy: currentUser.id
+        createdBy: currentUser.id,
       };
-      
+
       await supplyChainService.createSupplyChain(payload);
-      
-      // Reset form and close modal
+
       setNewChainData({
         name: '',
         description: '',
-        createdBy: currentUser?.id
+        createdBy: currentUser?.id,
       });
       setShowCreateModal(false);
-      
-      // Refresh the list
+
       fetchSupplyChains();
     } catch (err) {
       console.error('Error creating supply chain:', err);
@@ -108,32 +102,33 @@ const SupplyChainsList = () => {
     }
   };
 
-  const openDeleteModal = (chain) => {
+  const openDeleteModal = chain => {
     setChainToDelete(chain);
     setShowDeleteModal(true);
   };
 
   const handleDeleteSupplyChain = async () => {
     if (!chainToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       await supplyChainService.deleteSupplyChain(chainToDelete.id);
-      
-      // Close modal and refresh list
+
       setShowDeleteModal(false);
       setChainToDelete(null);
       fetchSupplyChains();
     } catch (err) {
       console.error('Error deleting supply chain:', err);
-      const errorMessage = err.response?.data?.error || 'Failed to delete supply chain. Please try again.';
+      const errorMessage =
+        err.response?.data?.error ||
+        'Failed to delete supply chain. Please try again.';
       setError(errorMessage);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleHideChain = (chainId) => {
+  const handleHideChain = chainId => {
     setHiddenChains(prev => [...prev, chainId]);
   };
 
@@ -141,8 +136,7 @@ const SupplyChainsList = () => {
     setHiddenChains([]);
   };
 
-  // Function to get appropriate blockchain status color
-  const getStatusColor = (status) => {
+  const getStatusColor = status => {
     switch (status) {
       case 'CONFIRMED':
         return 'bg-green-100 text-green-800';
@@ -156,11 +150,11 @@ const SupplyChainsList = () => {
     }
   };
 
-  // Check if a supply chain can be deleted
-  const canDeleteChain = (chain) => {
+  const canDeleteChain = chain => {
     return (
-      currentUser.role === 'ADMIN' && 
-      (chain.blockchainStatus === 'PENDING' || chain.blockchainStatus === 'FAILED')
+      currentUser.role === 'ADMIN' &&
+      (chain.blockchainStatus === 'PENDING' ||
+        chain.blockchainStatus === 'FAILED')
     );
   };
 
@@ -191,28 +185,28 @@ const SupplyChainsList = () => {
                 <div className="py-1">
                   <button
                     onClick={() => {
-                      setFilterStatus("all");
+                      setFilterStatus('all');
                       setShowFilterMenu(false);
                     }}
-                    className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === "all" ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                    className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === 'all' ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
                   >
                     All Supply Chains
                   </button>
                   <button
                     onClick={() => {
-                      setFilterStatus("finalized");
+                      setFilterStatus('finalized');
                       setShowFilterMenu(false);
                     }}
-                    className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === "finalized" ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                    className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === 'finalized' ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
                   >
                     Finalized Only
                   </button>
                   <button
                     onClick={() => {
-                      setFilterStatus("not-finalized");
+                      setFilterStatus('not-finalized');
                       setShowFilterMenu(false);
                     }}
-                    className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === "not-finalized" ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                    className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === 'not-finalized' ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
                   >
                     Not Finalized
                   </button>
@@ -231,8 +225,8 @@ const SupplyChainsList = () => {
               </div>
             )}
           </div>
-          
-          {(currentUser.role === 'ADMIN') && (
+
+          {currentUser.role === 'ADMIN' && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -246,8 +240,8 @@ const SupplyChainsList = () => {
       {error && (
         <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded flex justify-between items-center">
           <div>{error}</div>
-          <button 
-            onClick={() => setError(null)} 
+          <button
+            onClick={() => setError(null)}
             className="text-red-700 font-bold"
           >
             ✕
@@ -258,9 +252,9 @@ const SupplyChainsList = () => {
       {filteredChains.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
           <p className="text-gray-500 mb-4">
-            {supplyChains.length === 0 
-              ? "No supply chains found." 
-              : "No supply chains match your current filters."}
+            {supplyChains.length === 0
+              ? 'No supply chains found.'
+              : 'No supply chains match your current filters.'}
           </p>
           {hiddenChains.length > 0 && (
             <button
@@ -281,8 +275,11 @@ const SupplyChainsList = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredChains.map((chain) => (
-            <div key={chain.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+          {filteredChains.map(chain => (
+            <div
+              key={chain.id}
+              className="bg-white rounded-lg shadow-md overflow-hidden"
+            >
               <div className="p-6">
                 <div className="flex justify-between items-start mb-2">
                   <h2 className="text-xl font-semibold">{chain.name}</h2>
@@ -307,23 +304,28 @@ const SupplyChainsList = () => {
                     )}
                   </div>
                 </div>
-                
-                <p className="text-gray-600 mb-4 line-clamp-2">{chain.description}</p>
-                
+
+                <p className="text-gray-600 mb-4 line-clamp-2">
+                  {chain.description}
+                </p>
+
                 <div className="flex justify-between items-center mb-4">
                   <div className="text-sm text-gray-500">
                     Created by: {chain.createdBy?.username || 'Unknown'}
                   </div>
                   <div className="text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(chain.blockchainStatus)}`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(chain.blockchainStatus)}`}
+                    >
                       {chain.blockchainStatus || 'PENDING'}
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex justify-between">
                   <span className="text-sm text-gray-500">
-                    Nodes: {chain.nodes?.length || 0} | Edges: {chain.edges?.length || 0}
+                    Nodes: {chain.nodes?.length || 0} | Edges:{' '}
+                    {chain.edges?.length || 0}
                   </span>
                   <Link
                     to={`/supply-chains/${chain.id}`}
@@ -342,11 +344,16 @@ const SupplyChainsList = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Create New Supply Chain</h3>
-            
+            <h3 className="text-lg font-semibold mb-4">
+              Create New Supply Chain
+            </h3>
+
             <form onSubmit={handleCreateSupplyChain}>
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor="name"
+                >
                   Name
                 </label>
                 <input
@@ -359,9 +366,12 @@ const SupplyChainsList = () => {
                   required
                 />
               </div>
-              
+
               <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor="description"
+                >
                   Description
                 </label>
                 <textarea
@@ -374,7 +384,7 @@ const SupplyChainsList = () => {
                   required
                 ></textarea>
               </div>
-              
+
               <div className="flex justify-end space-x-4">
                 <button
                   type="button"
@@ -400,23 +410,33 @@ const SupplyChainsList = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-2">Delete Supply Chain</h3>
-            <p className="text-red-600 mb-4">Warning: This action cannot be undone.</p>
-            
+            <p className="text-red-600 mb-4">
+              Warning: This action cannot be undone.
+            </p>
+
             <div className="mb-6">
               <p className="mb-4">
-                Are you sure you want to delete the supply chain "{chainToDelete.name}"?
+                Are you sure you want to delete the supply chain "
+                {chainToDelete.name}"?
               </p>
-              
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-sm">
                 <p className="font-semibold mb-2">Note:</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>Only supply chains with "PENDING" or "FAILED" blockchain status can be deleted</li>
-                  <li>Finalized or confirmed supply chains cannot be deleted</li>
-                  <li>This will delete all nodes and edges in the supply chain</li>
+                  <li>
+                    Only supply chains with "PENDING" or "FAILED" blockchain
+                    status can be deleted
+                  </li>
+                  <li>
+                    Finalized or confirmed supply chains cannot be deleted
+                  </li>
+                  <li>
+                    This will delete all nodes and edges in the supply chain
+                  </li>
                 </ul>
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-4">
               <button
                 type="button"

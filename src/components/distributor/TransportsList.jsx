@@ -1,11 +1,8 @@
-// src/components/distributor/TransportsList.jsx - Consolidated from multiple components
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { distributorService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RecordTransportAction from './RecordTransportAction';
 import ScheduleMaterialPickup from './ScheduleMaterialPickup';
-
 
 const TransportsList = () => {
   const { currentUser } = useAuth();
@@ -27,7 +24,7 @@ const TransportsList = () => {
     inTransit: 0,
     delivered: 0,
     onTimeDeliveries: 0,
-    delayedDeliveries: 0
+    delayedDeliveries: 0,
   });
 
   useEffect(() => {
@@ -37,36 +34,34 @@ const TransportsList = () => {
   const fetchTransports = async () => {
     try {
       setLoading(true);
-      
-      // Fetch transports and pending material pickups in parallel
+
       const [transportsResponse, pendingMaterialsResponse] = await Promise.all([
         distributorService.getTransports(currentUser.id),
-        distributorService.getReadyMaterialRequests()
+        distributorService.getReadyMaterialRequests(),
       ]);
-      
+
       const transportsList = transportsResponse.data || [];
-      
-      // Process material requests and convert them to a compatible format for the table
+
       const pendingMaterials = pendingMaterialsResponse.data || [];
       setPendingMaterialPickups(pendingMaterials);
-      
-      // Convert material requests to transport-like objects
+
       const materialRequestsAsTransports = pendingMaterials.map(request => ({
-        id: `material-${request.id}`, // Prefix to distinguish from regular transports
+        id: `material-${request.id}`, 
         type: 'Material Transport',
         status: 'Pending Scheduling',
         trackingNumber: request.requestNumber,
-        source: { username: request.manufacturer?.username || 'Unknown Manufacturer' },
+        source: {
+          username: request.manufacturer?.username || 'Unknown Manufacturer',
+        },
         destination: { username: currentUser.username || 'This Distributor' },
         scheduledPickupDate: request.requestedDeliveryDate,
-        isMaterialRequest: true, // Flag to identify this as a material request
-        originalRequest: request // Keep the original data
+        isMaterialRequest: true, 
+        originalRequest: request, 
       }));
-      
-      // Combine both arrays and set to state
+
       setTransports([...transportsList, ...materialRequestsAsTransports]);
-      calculateStats(transportsList); // Only calculate stats for actual transports
-      
+      calculateStats(transportsList);
+
       setError(null);
     } catch (err) {
       console.error('Error fetching transports:', err);
@@ -76,22 +71,30 @@ const TransportsList = () => {
     }
   };
 
-  const calculateStats = (transportData) => {
+  const calculateStats = transportData => {
     if (!transportData || !Array.isArray(transportData)) return;
-    
-    const scheduled = transportData.filter(t => t.status === 'Scheduled').length;
-    const inTransit = transportData.filter(t => t.status === 'In Transit').length;
-    const delivered = transportData.filter(t => t.status === 'Delivered').length;
-    
+
+    const scheduled = transportData.filter(
+      t => t.status === 'Scheduled'
+    ).length;
+    const inTransit = transportData.filter(
+      t => t.status === 'In Transit'
+    ).length;
+    const delivered = transportData.filter(
+      t => t.status === 'Delivered'
+    ).length;
+
     let onTime = 0;
     let delayed = 0;
-    
-    const deliveredTransports = transportData.filter(t => t.status === 'Delivered');
+
+    const deliveredTransports = transportData.filter(
+      t => t.status === 'Delivered'
+    );
     deliveredTransports.forEach(transport => {
       if (transport.scheduledDeliveryDate && transport.actualDeliveryDate) {
         const scheduledDate = new Date(transport.scheduledDeliveryDate);
         const actualDate = new Date(transport.actualDeliveryDate);
-        
+
         if (actualDate <= scheduledDate) {
           onTime++;
         } else {
@@ -99,18 +102,18 @@ const TransportsList = () => {
         }
       }
     });
-    
+
     setStats({
       total: transportData.length,
       scheduled,
       inTransit,
       delivered,
       onTimeDeliveries: onTime,
-      delayedDeliveries: delayed
+      delayedDeliveries: delayed,
     });
   };
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = tab => {
     setActiveTab(tab);
   };
 
@@ -125,17 +128,19 @@ const TransportsList = () => {
       setLoading(true);
       if (modalAction === 'pickup') {
         await distributorService.recordPickup(selectedTransport.id);
-        setSuccess(`Pickup recorded successfully for ${selectedTransport.trackingNumber}`);
+        setSuccess(
+          `Pickup recorded successfully for ${selectedTransport.trackingNumber}`
+        );
       } else if (modalAction === 'delivery') {
         await distributorService.recordDelivery(selectedTransport.id);
-        setSuccess(`Delivery completed successfully for ${selectedTransport.trackingNumber}`);
+        setSuccess(
+          `Delivery completed successfully for ${selectedTransport.trackingNumber}`
+        );
       }
-      
-      // Close modal and refresh data
+
       setShowActionModal(false);
       fetchTransports();
-      
-      // Clear success message after 3 seconds
+
       setTimeout(() => {
         setSuccess(null);
       }, 3000);
@@ -147,70 +152,104 @@ const TransportsList = () => {
     }
   };
 
-  // Filter transports based on active tab and search term
   const filteredTransports = transports.filter(transport => {
-    // Apply tab filter
-    const tabFilter = 
-      activeTab === 'all' ? true :
-      activeTab === 'material' ? transport.type === 'Material Transport' :
-      activeTab === 'product' ? transport.type === 'Product Delivery' :
-      activeTab === 'scheduled' ? (transport.status === 'Scheduled' || transport.status === 'Pending Scheduling') :
-      activeTab === 'in-transit' ? transport.status === 'In Transit' :
-      activeTab === 'delivered' ? transport.status === 'Delivered' : true;
-    
-    // Apply search filter
-    const searchFilter = 
-      !searchTerm ? true :
-      (transport.trackingNumber && transport.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (transport.source?.username && transport.source.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (transport.destination?.username && transport.destination.username.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+    const tabFilter =
+      activeTab === 'all'
+        ? true
+        : activeTab === 'material'
+          ? transport.type === 'Material Transport'
+          : activeTab === 'product'
+            ? transport.type === 'Product Delivery'
+            : activeTab === 'scheduled'
+              ? transport.status === 'Scheduled' ||
+                transport.status === 'Pending Scheduling'
+              : activeTab === 'in-transit'
+                ? transport.status === 'In Transit'
+                : activeTab === 'delivered'
+                  ? transport.status === 'Delivered'
+                  : true;
+
+    const searchFilter = !searchTerm
+      ? true
+      : (transport.trackingNumber &&
+          transport.trackingNumber
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (transport.source?.username &&
+          transport.source.username
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (transport.destination?.username &&
+          transport.destination.username
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()));
+
     return tabFilter && searchFilter;
   });
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = status => {
     switch (status) {
       case 'Scheduled':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Scheduled</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+            Scheduled
+          </span>
+        );
       case 'In Transit':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">In Transit</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+            In Transit
+          </span>
+        );
       case 'Delivered':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Delivered</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+            Delivered
+          </span>
+        );
       case 'Pending Scheduling':
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Ready for Pickup</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+            Ready for Pickup
+          </span>
+        );
       default:
-        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
+        return (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+            {status}
+          </span>
+        );
     }
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleDateString();
   };
 
-  const calculateDaysInTransit = (pickupDate) => {
+  const calculateDaysInTransit = pickupDate => {
     if (!pickupDate) return 0;
-    
+
     const pickup = new Date(pickupDate);
     const today = new Date();
     const diffTime = Math.abs(today - pickup);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   };
 
-  const renderActionButtons = (transport) => {
+  const renderActionButtons = transport => {
     if (transport.isMaterialRequest) {
       return (
         <button
-            onClick={() => setMaterialToSchedule(transport.originalRequest)}
-            className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold py-1 px-2 rounded"
-            >
-            Schedule Pickup
+          onClick={() => setMaterialToSchedule(transport.originalRequest)}
+          className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold py-1 px-2 rounded"
+        >
+          Schedule Pickup
         </button>
       );
     }
-    
+
     return (
       <div className="flex space-x-2">
         {transport.status === 'Scheduled' && (
@@ -229,8 +268,8 @@ const TransportsList = () => {
             Record Delivery
           </button>
         )}
-        <Link 
-          to={`/distributor/transports/${transport.id}`} 
+        <Link
+          to={`/distributor/transports/${transport.id}`}
           className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-1 px-2 rounded"
         >
           View Details
@@ -254,12 +293,22 @@ const TransportsList = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Transport Management</h1>
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={fetchTransports}
             className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded flex items-center"
           >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="h-5 w-5 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
             Refresh
           </button>
@@ -272,7 +321,7 @@ const TransportsList = () => {
           <span className="block sm:inline"> {error}</span>
         </div>
       )}
-      
+
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
           <strong className="font-bold">Success:</strong>
@@ -282,17 +331,27 @@ const TransportsList = () => {
 
       {/* Pending Pickups and Deliveries Notifications */}
       {pendingMaterialPickups.length > 0 && (
-      <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-6">
+        <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-6">
           <strong className="font-bold">Ready for Pickup:</strong>
-          <span className="block sm:inline"> {pendingMaterialPickups.length} material {pendingMaterialPickups.length === 1 ? 'request' : 'requests'} ready for pickup. </span>
-      </div>
+          <span className="block sm:inline">
+            {' '}
+            {pendingMaterialPickups.length} material{' '}
+            {pendingMaterialPickups.length === 1 ? 'request' : 'requests'} ready
+            for pickup.{' '}
+          </span>
+        </div>
       )}
 
       {pendingProductDeliveries.length > 0 && (
-      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
           <strong className="font-bold">Ready for Delivery:</strong>
-          <span className="block sm:inline"> {pendingProductDeliveries.length} product {pendingProductDeliveries.length === 1 ? 'order' : 'orders'} ready for delivery. </span>
-      </div>
+          <span className="block sm:inline">
+            {' '}
+            {pendingProductDeliveries.length} product{' '}
+            {pendingProductDeliveries.length === 1 ? 'order' : 'orders'} ready
+            for delivery.{' '}
+          </span>
+        </div>
       )}
 
       {/* Stats Overview */}
@@ -300,93 +359,168 @@ const TransportsList = () => {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="bg-gray-500 rounded-full p-2">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                />
               </svg>
             </div>
             <div className="ml-3">
               <h2 className="text-gray-600 text-xs font-medium">Total</h2>
-              <p className="text-xl font-semibold text-gray-800">{stats.total}</p>
+              <p className="text-xl font-semibold text-gray-800">
+                {stats.total}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="bg-blue-500 rounded-full p-2">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
             </div>
             <div className="ml-3">
               <h2 className="text-gray-600 text-xs font-medium">Scheduled</h2>
-              <p className="text-xl font-semibold text-blue-600">{stats.scheduled}</p>
+              <p className="text-xl font-semibold text-blue-600">
+                {stats.scheduled}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="bg-yellow-500 rounded-full p-2">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
             </div>
             <div className="ml-3">
               <h2 className="text-gray-600 text-xs font-medium">In Transit</h2>
-              <p className="text-xl font-semibold text-yellow-600">{stats.inTransit}</p>
+              <p className="text-xl font-semibold text-yellow-600">
+                {stats.inTransit}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="bg-green-500 rounded-full p-2">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="ml-3">
               <h2 className="text-gray-600 text-xs font-medium">Delivered</h2>
-              <p className="text-xl font-semibold text-green-600">{stats.delivered}</p>
+              <p className="text-xl font-semibold text-green-600">
+                {stats.delivered}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="bg-green-500 rounded-full p-2">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="ml-3">
               <h2 className="text-gray-600 text-xs font-medium">On Time</h2>
-              <p className="text-xl font-semibold text-green-600">{stats.onTimeDeliveries}</p>
+              <p className="text-xl font-semibold text-green-600">
+                {stats.onTimeDeliveries}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="bg-red-500 rounded-full p-2">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="ml-3">
               <h2 className="text-gray-600 text-xs font-medium">Delayed</h2>
-              <p className="text-xl font-semibold text-red-600">{stats.delayedDeliveries}</p>
+              <p className="text-xl font-semibold text-red-600">
+                {stats.delayedDeliveries}
+              </p>
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Search and Filter */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="search"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Search
             </label>
             <input
@@ -395,7 +529,7 @@ const TransportsList = () => {
               className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
               placeholder="Search by tracking number, source, or destination..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="self-end">
@@ -469,15 +603,26 @@ const TransportsList = () => {
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {filteredTransports.length === 0 ? (
           <div className="p-8 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+              />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No transports found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No transports found
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {transports.length > 0 
-                ? 'Try adjusting your search or filter criteria' 
-                : 'Get started by scheduling a new material pickup or product delivery'
-              }
+              {transports.length > 0
+                ? 'Try adjusting your search or filter criteria'
+                : 'Get started by scheduling a new material pickup or product delivery'}
             </p>
             <div className="mt-6 flex justify-center space-x-4">
               <Link
@@ -512,10 +657,14 @@ const TransportsList = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {activeTab === 'in-transit' ? 'Days In Transit' : 'Scheduled Dates'}
+                    {activeTab === 'in-transit'
+                      ? 'Days In Transit'
+                      : 'Scheduled Dates'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {activeTab === 'in-transit' ? 'Est. Delivery' : 'Actual Dates'}
+                    {activeTab === 'in-transit'
+                      ? 'Est. Delivery'
+                      : 'Actual Dates'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -523,13 +672,15 @@ const TransportsList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTransports.map((transport) => (
+                {filteredTransports.map(transport => (
                   <tr key={transport.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transport.isMaterialRequest ? (
-                        <span className="text-gray-600">{transport.trackingNumber}</span>
+                        <span className="text-gray-600">
+                          {transport.trackingNumber}
+                        </span>
                       ) : (
-                        <Link 
+                        <Link
                           to={`/distributor/transports/${transport.id}`}
                           className="text-blue-600 hover:text-blue-900"
                         >
@@ -538,16 +689,26 @@ const TransportsList = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        transport.type === 'Material Transport' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                      }`}>
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          transport.type === 'Material Transport'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
                         {transport.type}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">
-                        <p><span className="font-semibold">From:</span> {transport.source?.username || 'Unknown'}</p>
-                        <p><span className="font-semibold">To:</span> {transport.destination?.username || 'Unknown'}</p>
+                        <p>
+                          <span className="font-semibold">From:</span>{' '}
+                          {transport.source?.username || 'Unknown'}
+                        </p>
+                        <p>
+                          <span className="font-semibold">To:</span>{' '}
+                          {transport.destination?.username || 'Unknown'}
+                        </p>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -556,25 +717,37 @@ const TransportsList = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transport.isMaterialRequest ? (
                         <div className="text-sm">
-                          <p><span className="font-medium">Requested Date:</span> {formatDate(transport.scheduledPickupDate)}</p>
+                          <p>
+                            <span className="font-medium">Requested Date:</span>{' '}
+                            {formatDate(transport.scheduledPickupDate)}
+                          </p>
                         </div>
                       ) : transport.status === 'In Transit' ? (
                         <div className="text-sm font-semibold">
-                          {calculateDaysInTransit(transport.actualPickupDate)} days
+                          {calculateDaysInTransit(transport.actualPickupDate)}{' '}
+                          days
                           <div className="text-xs text-gray-500">
                             Picked up: {formatDate(transport.actualPickupDate)}
                           </div>
                         </div>
                       ) : (
                         <div className="text-sm">
-                          <p><span className="font-medium">Pickup:</span> {formatDate(transport.scheduledPickupDate)}</p>
-                          <p><span className="font-medium">Delivery:</span> {formatDate(transport.scheduledDeliveryDate)}</p>
+                          <p>
+                            <span className="font-medium">Pickup:</span>{' '}
+                            {formatDate(transport.scheduledPickupDate)}
+                          </p>
+                          <p>
+                            <span className="font-medium">Delivery:</span>{' '}
+                            {formatDate(transport.scheduledDeliveryDate)}
+                          </p>
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transport.isMaterialRequest ? (
-                        <div className="text-sm text-gray-500">Pending scheduling</div>
+                        <div className="text-sm text-gray-500">
+                          Pending scheduling
+                        </div>
                       ) : transport.status === 'In Transit' ? (
                         <div className="text-sm">
                           {formatDate(transport.scheduledDeliveryDate)}
@@ -583,11 +756,15 @@ const TransportsList = () => {
                         <div className="text-sm">
                           <p>
                             <span className="font-medium">Pickup:</span>{' '}
-                            {transport.actualPickupDate ? formatDate(transport.actualPickupDate) : 'Pending'}
+                            {transport.actualPickupDate
+                              ? formatDate(transport.actualPickupDate)
+                              : 'Pending'}
                           </p>
                           <p>
                             <span className="font-medium">Delivery:</span>{' '}
-                            {transport.actualDeliveryDate ? formatDate(transport.actualDeliveryDate) : 'Pending'}
+                            {transport.actualDeliveryDate
+                              ? formatDate(transport.actualDeliveryDate)
+                              : 'Pending'}
                           </p>
                         </div>
                       )}
@@ -610,41 +787,40 @@ const TransportsList = () => {
             <h2 className="text-xl font-semibold mb-4">
               {modalAction === 'pickup' ? 'Confirm Pickup' : 'Confirm Delivery'}
             </h2>
-            
+
             <p className="mb-4">
               {modalAction === 'pickup'
                 ? `Are you sure you want to record pickup for ${selectedTransport.trackingNumber}?`
-                : `Are you sure you want to record delivery for ${selectedTransport.trackingNumber}?`
-              }
+                : `Are you sure you want to record delivery for ${selectedTransport.trackingNumber}?`}
             </p>
-            
+
             <div className="mb-4 bg-gray-50 p-3 rounded-md">
-              <p><span className="font-medium">Transport Type:</span> {selectedTransport.type}</p>
+              <p>
+                <span className="font-medium">Transport Type:</span>{' '}
+                {selectedTransport.type}
+              </p>
               <p>
                 <span className="font-medium">
                   {modalAction === 'pickup' ? 'Pickup From:' : 'Delivery To:'}
                 </span>{' '}
-                {modalAction === 'pickup' 
+                {modalAction === 'pickup'
                   ? selectedTransport.source?.username || 'Unknown'
-                  : selectedTransport.destination?.username || 'Unknown'
-                }
+                  : selectedTransport.destination?.username || 'Unknown'}
               </p>
               <p>
                 <span className="font-medium">Scheduled Date:</span>{' '}
                 {modalAction === 'pickup'
                   ? formatDate(selectedTransport.scheduledPickupDate)
-                  : formatDate(selectedTransport.scheduledDeliveryDate)
-                }
+                  : formatDate(selectedTransport.scheduledDeliveryDate)}
               </p>
             </div>
-            
+
             <p className="text-sm text-gray-600 mb-4">
               {modalAction === 'pickup'
                 ? 'This action will mark this transport as "In Transit".'
-                : 'This action will mark this transport as "Delivered" and complete the transport process.'
-              }
+                : 'This action will mark this transport as "Delivered" and complete the transport process.'}
             </p>
-            
+
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowActionModal(false)}
@@ -667,20 +843,20 @@ const TransportsList = () => {
         </div>
       )}
       {/* Material Pickup Scheduling Modal */}
-        {materialToSchedule && (
+      {materialToSchedule && (
         <ScheduleMaterialPickup
-            materialRequest={materialToSchedule}
-            currentUser={currentUser}
-            onComplete={(message) => {
+          materialRequest={materialToSchedule}
+          currentUser={currentUser}
+          onComplete={message => {
             setSuccess(message);
             setMaterialToSchedule(null);
             fetchTransports();
             setTimeout(() => {
-                setSuccess(null);
+              setSuccess(null);
             }, 3000);
-            }}
+          }}
         />
-        )}
+      )}
     </div>
   );
 };

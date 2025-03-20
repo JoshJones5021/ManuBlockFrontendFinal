@@ -1,7 +1,5 @@
-// src/context/AuthContext.jsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import authService from '../services/auth';
-import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
@@ -14,7 +12,6 @@ export const AuthProvider = ({ children }) => {
   const [walletStatus, setWalletStatus] = useState('disconnected');
 
   useEffect(() => {
-    // Check if user is already logged in (token exists in local storage)
     const checkLoggedIn = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -42,8 +39,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.login(email, password);
       const { token, walletAddress } = response.data;
-      
-      // Decode JWT to get user info
+
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
@@ -52,18 +48,18 @@ export const AuthProvider = ({ children }) => {
           .map(c => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
           .join('')
       );
-      
+
       const userData = JSON.parse(jsonPayload);
       userData.walletAddress = walletAddress;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setCurrentUser(userData);
-      
+
       if (walletAddress) {
         setWalletStatus('connected');
       }
-      
+
       return userData;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to login');
@@ -71,7 +67,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
+  const register = async userData => {
     setError(null);
     try {
       await authService.register(userData);
@@ -89,16 +85,15 @@ export const AuthProvider = ({ children }) => {
     setWalletStatus('disconnected');
   };
 
-  const connectWallet = async (walletAddress) => {
+  const connectWallet = async walletAddress => {
     try {
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
-      
+
       setWalletStatus('connecting');
       await authService.connectWallet(currentUser.id, walletAddress);
-      
-      // Update local user data
+
       const updatedUser = { ...currentUser, walletAddress };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
@@ -111,20 +106,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Function to detect and connect to MetaMask
   const connectToMetaMask = async () => {
     if (!window.ethereum) {
-      setError('MetaMask is not installed. Please install it to connect your wallet.');
+      setError(
+        'MetaMask is not installed. Please install it to connect your wallet.'
+      );
       throw new Error('MetaMask not installed');
     }
-    
+
     try {
       setWalletStatus('connecting');
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      });
       const walletAddress = accounts[0];
-      
-      // Connect wallet through the API
+
       return await connectWallet(walletAddress);
     } catch (err) {
       setWalletStatus('error');
@@ -133,15 +130,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Listen for account changes in MetaMask
   useEffect(() => {
     if (window.ethereum && currentUser?.walletAddress) {
-      const handleAccountsChanged = async (accounts) => {
+      const handleAccountsChanged = async accounts => {
         if (accounts.length === 0) {
-          // User has disconnected their wallet
           console.log('MetaMask: wallet disconnected');
-          
-          // Update user record to remove wallet
+
           try {
             await connectWallet('');
             setWalletStatus('disconnected');
@@ -149,7 +143,6 @@ export const AuthProvider = ({ children }) => {
             console.error('Failed to update wallet status:', err);
           }
         } else if (accounts[0] !== currentUser.walletAddress) {
-          // User has switched accounts, update the wallet
           console.log('MetaMask: wallet account changed');
           try {
             await connectWallet(accounts[0]);
@@ -158,12 +151,14 @@ export const AuthProvider = ({ children }) => {
           }
         }
       };
-      
+
       window.ethereum.on('accountsChanged', handleAccountsChanged);
-      
-      // Cleanup
+
       return () => {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener(
+          'accountsChanged',
+          handleAccountsChanged
+        );
       };
     }
   }, [currentUser?.walletAddress]);
@@ -177,7 +172,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     connectWallet,
-    connectToMetaMask
+    connectToMetaMask,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

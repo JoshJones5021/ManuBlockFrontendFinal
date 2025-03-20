@@ -1,7 +1,7 @@
 import React from 'react';
 
-const CreateMaterialRequestModal = ({ 
-  onSubmit, 
+const CreateMaterialRequestModal = ({
+  onSubmit,
   onCancel,
   formData,
   onChange,
@@ -12,22 +12,38 @@ const CreateMaterialRequestModal = ({
   supplyChains,
   filteredSuppliers,
   materials,
-  error
+  error,
 }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Create Material Request</h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+          <button
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
             </svg>
           </button>
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplyChainId">
+          <label
+            className="block text-gray-700 text-sm font-bold mb-2"
+            htmlFor="supplyChainId"
+          >
             Supply Chain <span className="text-red-500">*</span>
           </label>
           <select
@@ -39,7 +55,7 @@ const CreateMaterialRequestModal = ({
             required
           >
             <option value="">Select a supply chain</option>
-            {supplyChains.map((chain) => (
+            {supplyChains.map(chain => (
               <option key={chain.id} value={chain.id}>
                 {chain.name} ({chain.blockchainStatus})
               </option>
@@ -47,14 +63,18 @@ const CreateMaterialRequestModal = ({
           </select>
           {supplyChains.length === 0 && (
             <p className="text-red-500 text-xs italic mt-1">
-              No finalized supply chains available. Please contact an administrator.
+              No finalized supply chains available. Please contact an
+              administrator.
             </p>
           )}
         </div>
-        
+
         <form onSubmit={onSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="supplierId">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="supplierId"
+            >
               Supplier <span className="text-red-500">*</span>
             </label>
             <select
@@ -67,7 +87,7 @@ const CreateMaterialRequestModal = ({
               disabled={filteredSuppliers.length === 0}
             >
               <option value="">Select a supplier</option>
-              {filteredSuppliers.map((supplier) => (
+              {filteredSuppliers.map(supplier => (
                 <option key={supplier.id} value={supplier.id}>
                   {supplier.username}
                 </option>
@@ -79,9 +99,12 @@ const CreateMaterialRequestModal = ({
               </p>
             )}
           </div>
-          
+
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="requestedDeliveryDate">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="requestedDeliveryDate"
+            >
               Requested Delivery Date (Optional)
             </label>
             <input
@@ -94,9 +117,12 @@ const CreateMaterialRequestModal = ({
               min={new Date().toISOString().split('T')[0]} // Set min to today
             />
           </div>
-          
+
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="notes">
+            <label
+              className="block text-gray-700 text-sm font-bold mb-2"
+              htmlFor="notes"
+            >
               Notes (Optional)
             </label>
             <textarea
@@ -109,18 +135,21 @@ const CreateMaterialRequestModal = ({
               placeholder="Add any special requirements or notes for the supplier"
             ></textarea>
           </div>
-          
+
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <label className="block text-gray-700 text-sm font-bold">
                 Materials <span className="text-red-500">*</span>
               </label>
             </div>
-            
+
             <div className="mb-4 p-4 border rounded">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                 <div className="col-span-2">
-                  <label className="block text-gray-700 text-xs mb-1" htmlFor="materialId">
+                  <label
+                    className="block text-gray-700 text-xs mb-1"
+                    htmlFor="materialId"
+                  >
                     Material
                   </label>
                   <select
@@ -132,16 +161,19 @@ const CreateMaterialRequestModal = ({
                     disabled={!formData.supplierId || materials.length === 0}
                   >
                     <option value="">Select a material</option>
-                    {materials.map((material) => (
+                    {materials.map(material => (
                       <option key={material.id} value={material.id}>
                         {material.name} ({material.unit})
                       </option>
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="block text-gray-700 text-xs mb-1" htmlFor="quantity">
+                  <label
+                    className="block text-gray-700 text-xs mb-1"
+                    htmlFor="quantity"
+                  >
                     Quantity
                   </label>
                   <input
@@ -156,7 +188,7 @@ const CreateMaterialRequestModal = ({
                   />
                 </div>
               </div>
-              
+
               <button
                 type="button"
                 onClick={addMaterialToRequest}
@@ -166,46 +198,54 @@ const CreateMaterialRequestModal = ({
                 Add Material
               </button>
             </div>
-            
+
             {formData.items.length > 0 ? (
               <div className="border rounded p-4">
                 <h4 className="font-medium mb-2">Materials in this request:</h4>
                 <ul className="divide-y">
-                {formData.items.map((item, index) => {
-                  // Parse the materialId as integer to ensure proper comparison
-                  const materialInfo = materials.find(m => m.id === parseInt(item.materialId));
-                  
-                  return (
-                    <li key={index} className="py-2 flex justify-between items-center">
-                      <div>
-                        <span className="font-medium">{materialInfo?.name || 'Unknown Material'}</span>
-                        <span className="text-gray-500 text-sm ml-2">
-                          Qty: {item.quantity} {materialInfo?.unit || 'units'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeMaterialFromRequest(index)}
-                        className="text-red-600 hover:text-red-800"
+                  {formData.items.map((item, index) => {
+                    const materialInfo = materials.find(
+                      m => m.id === parseInt(item.materialId)
+                    );
+
+                    return (
+                      <li
+                        key={index}
+                        className="py-2 flex justify-between items-center"
                       >
-                        Remove
-                      </button>
-                    </li>
-                  );
-                })}
+                        <div>
+                          <span className="font-medium">
+                            {materialInfo?.name || 'Unknown Material'}
+                          </span>
+                          <span className="text-gray-500 text-sm ml-2">
+                            Qty: {item.quantity} {materialInfo?.unit || 'units'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeMaterialFromRequest(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : (
-              <p className="text-gray-500 text-sm italic">No materials added yet.</p>
+              <p className="text-gray-500 text-sm italic">
+                No materials added yet.
+              </p>
             )}
           </div>
-          
+
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
               {error}
             </div>
           )}
-          
+
           <div className="flex justify-end mt-6">
             <button
               type="button"
@@ -217,7 +257,11 @@ const CreateMaterialRequestModal = ({
             <button
               type="submit"
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              disabled={!formData.supplyChainId || !formData.supplierId || formData.items.length === 0}
+              disabled={
+                !formData.supplyChainId ||
+                !formData.supplierId ||
+                formData.items.length === 0
+              }
             >
               Create Request
             </button>

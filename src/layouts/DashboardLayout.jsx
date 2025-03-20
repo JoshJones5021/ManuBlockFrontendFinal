@@ -7,8 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 const DashboardLayout = () => {
   const { currentUser, loading } = useAuth();
-  
-  // Show loading indicator while checking authentication
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -16,24 +15,23 @@ const DashboardLayout = () => {
       </div>
     );
   }
-  
-  // Redirect to login if not authenticated
+
   if (!currentUser) {
     return <Navigate to="/login" />;
   }
-  
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      
+
       <div className="flex flex-1">
         <Sidebar />
-        
+
         <main className="flex-1 bg-gray-100 p-6">
-          <Outlet /> {/* This renders the nested route components */}
+          <Outlet />
         </main>
       </div>
-      
+
       <Footer />
     </div>
   );

@@ -20,7 +20,7 @@ const Navbar = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const getRoleDisplay = (role) => {
+  const getRoleDisplay = role => {
     if (!role) return '';
     return role.charAt(0) + role.slice(1).toLowerCase();
   };
@@ -37,7 +37,6 @@ const Navbar = () => {
 
   return (
     <nav className="bg-gray-800 text-white">
-      {/* ✅ Flexbox now pushes content to the right */}
       <div className="flex items-center justify-end h-16 px-4">
         {/* User Menu and Wallet Connector */}
         {currentUser && (
@@ -91,7 +90,12 @@ const Navbar = () => {
               stroke="currentColor"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
             <svg
               className={`${isMobileMenuOpen ? 'block' : 'hidden'} h-6 w-6`}
@@ -101,7 +105,12 @@ const Navbar = () => {
               stroke="currentColor"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -113,8 +122,12 @@ const Navbar = () => {
           <div className="pt-4 pb-3 border-t border-gray-700">
             <div className="flex items-center px-5">
               <div className="ml-3">
-                <div className="text-base font-medium text-white">{currentUser.username}</div>
-                <div className="text-sm font-medium text-gray-400">{currentUser.email}</div>
+                <div className="text-base font-medium text-white">
+                  {currentUser.username}
+                </div>
+                <div className="text-sm font-medium text-gray-400">
+                  {currentUser.email}
+                </div>
               </div>
             </div>
             <div className="mt-3 px-2 space-y-1">

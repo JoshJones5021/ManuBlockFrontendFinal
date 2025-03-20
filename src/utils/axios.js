@@ -11,19 +11,19 @@ const instance = axios.create({
   timeout: 15000, // Increased timeout for slower connections
   headers: {
     'Content-Type': 'application/json',
-  }
+  },
 });
 
 // Add a request interceptor to add the auth token to requests
 instance.interceptors.request.use(
-  (config) => {
+  config => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  error => {
     console.error('Request error:', error);
     return Promise.reject(error);
   }
@@ -31,10 +31,10 @@ instance.interceptors.request.use(
 
 // Add a response interceptor to handle common errors
 instance.interceptors.response.use(
-  (response) => {
+  response => {
     return response;
   },
-  (error) => {
+  error => {
     // Handle network errors
     if (!error.response) {
       console.error('Network Error:', error.message);
@@ -56,9 +56,7 @@ instance.interceptors.response.use(
 
     // If the error has a specific message from the server, use it
     if (error.response && error.response.data && error.response.data.error) {
-      return Promise.reject(
-        new Error(error.response.data.error)
-      );
+      return Promise.reject(new Error(error.response.data.error));
     }
 
     // For server errors, provide a more user-friendly message

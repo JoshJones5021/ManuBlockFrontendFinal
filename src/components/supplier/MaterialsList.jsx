@@ -1,7 +1,9 @@
-// src/components/supplier/MaterialsList.jsx - Fixed to handle supplyChains data correctly
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { supplierService, supplyChainService, adminService } from '../../services/api';
+import {
+  supplierService,
+  supplyChainService,
+  adminService,
+} from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import MaterialCreationForm from './MaterialCreationForm';
 
@@ -18,7 +20,7 @@ const MaterialsList = () => {
     name: '',
     description: '',
     specifications: '',
-    unit: ''
+    unit: '',
   });
   const [adminUser, setAdminUser] = useState(null);
 
@@ -44,14 +46,13 @@ const MaterialsList = () => {
 
   const fetchSupplyChains = async () => {
     try {
-      // Use the proper service method to get supply chains for this user
-      const chains = await supplyChainService.getSupplyChainsByUser(currentUser.id);
-      
-      // Important change: supplyChainService.getSupplyChainsByUser returns the data directly, not a response object
-      // So we don't need to access .data on the result
+      const chains = await supplyChainService.getSupplyChainsByUser(
+        currentUser.id
+      );
+
       setSupplyChains(Array.isArray(chains) ? chains : []);
-      
-      console.log('Supply chains fetched:', chains); // For debugging
+
+      console.log('Supply chains fetched:', chains);
     } catch (err) {
       console.error('Error fetching supply chains:', err);
       setSupplyChains([]);
@@ -60,45 +61,45 @@ const MaterialsList = () => {
 
   const fetchAdminUser = async () => {
     try {
-      // Only fetch admin user if the current user is not an admin
       if (currentUser.role !== 'ADMIN') {
         const response = await adminService.getAllUsers();
-        const admins = response.data.filter(user => user.role === 'ADMIN' && user.walletAddress);
+        const admins = response.data.filter(
+          user => user.role === 'ADMIN' && user.walletAddress
+        );
         if (admins.length > 0) {
           setAdminUser(admins[0]);
         }
       }
     } catch (err) {
       console.error('Error fetching admin user:', err);
-      // No need to set an error, as we'll fall back to the current user
     }
   };
 
-  const handleMaterialCreated = (newMaterial) => {
+  const handleMaterialCreated = newMaterial => {
     setMaterials([...materials, newMaterial]);
     setShowCreateForm(false);
   };
 
-  const handleEditClick = (material) => {
+  const handleEditClick = material => {
     setSelectedMaterial(material);
     setEditFormData({
       name: material.name,
       description: material.description,
       specifications: material.specifications,
-      unit: material.unit
+      unit: material.unit,
     });
     setShowEditModal(true);
   };
 
-  const handleEditChange = (e) => {
+  const handleEditChange = e => {
     const { name, value } = e.target;
     setEditFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const handleUpdateMaterial = async (e) => {
+  const handleUpdateMaterial = async e => {
     e.preventDefault();
     try {
       setLoading(true);
@@ -106,12 +107,13 @@ const MaterialsList = () => {
         selectedMaterial.id,
         editFormData
       );
-      
-      // Update the material in the list
-      setMaterials(materials.map(material => 
-        material.id === selectedMaterial.id ? response.data : material
-      ));
-      
+
+      setMaterials(
+        materials.map(material =>
+          material.id === selectedMaterial.id ? response.data : material
+        )
+      );
+
       setShowEditModal(false);
       setSelectedMaterial(null);
     } catch (err) {
@@ -122,19 +124,20 @@ const MaterialsList = () => {
     }
   };
 
-  const handleDeactivate = async (materialId) => {
+  const handleDeactivate = async materialId => {
     if (!window.confirm('Are you sure you want to deactivate this material?')) {
       return;
     }
-    
+
     try {
       setLoading(true);
       await supplierService.deactivateMaterial(materialId);
-      
-      // Update the materials list
-      setMaterials(materials.map(material => 
-        material.id === materialId ? { ...material, active: false } : material
-      ));
+
+      setMaterials(
+        materials.map(material =>
+          material.id === materialId ? { ...material, active: false } : material
+        )
+      );
     } catch (err) {
       console.error('Error deactivating material:', err);
       setError('Failed to deactivate material. Please try again.');
@@ -143,10 +146,10 @@ const MaterialsList = () => {
     }
   };
 
-  // Determine if blockchain tracking is enabled
-  const isBlockchainEnabled = currentUser.role === 'ADMIN' || 
-                            (adminUser && adminUser.walletAddress) || 
-                            currentUser.walletAddress;
+  const isBlockchainEnabled =
+    currentUser.role === 'ADMIN' ||
+    (adminUser && adminUser.walletAddress) ||
+    currentUser.walletAddress;
 
   if (loading && materials.length === 0) {
     return (
@@ -175,18 +178,30 @@ const MaterialsList = () => {
       )}
 
       {/* Blockchain Status Info */}
-      <div className={`mb-6 p-4 rounded ${isBlockchainEnabled ? 'bg-blue-50 border border-blue-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+      <div
+        className={`mb-6 p-4 rounded ${isBlockchainEnabled ? 'bg-blue-50 border border-blue-200' : 'bg-yellow-50 border border-yellow-200'}`}
+      >
         <div className="flex items-start">
-          <div className={`mr-3 flex-shrink-0 h-5 w-5 rounded-full ${isBlockchainEnabled ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+          <div
+            className={`mr-3 flex-shrink-0 h-5 w-5 rounded-full ${isBlockchainEnabled ? 'bg-blue-400' : 'bg-yellow-400'}`}
+          ></div>
           <div>
-            <h3 className={`text-sm font-medium ${isBlockchainEnabled ? 'text-blue-800' : 'text-yellow-800'}`}>
+            <h3
+              className={`text-sm font-medium ${isBlockchainEnabled ? 'text-blue-800' : 'text-yellow-800'}`}
+            >
               Blockchain Tracking Status
             </h3>
             <p className="mt-1 text-sm">
               {isBlockchainEnabled ? (
-                <>Materials will be tracked on the blockchain using admin wallet.</>
+                <>
+                  Materials will be tracked on the blockchain using admin
+                  wallet.
+                </>
               ) : (
-                <>Blockchain tracking is currently unavailable. Please contact an admin to connect their wallet.</>
+                <>
+                  Blockchain tracking is currently unavailable. Please contact
+                  an admin to connect their wallet.
+                </>
               )}
             </p>
           </div>
@@ -196,7 +211,7 @@ const MaterialsList = () => {
       {/* Material Creation Form */}
       {showCreateForm && (
         <div className="mb-6">
-          <MaterialCreationForm 
+          <MaterialCreationForm
             onSuccess={handleMaterialCreated}
             supplyChains={supplyChains}
           />
@@ -206,7 +221,9 @@ const MaterialsList = () => {
       {/* Materials List */}
       {materials.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <p className="text-gray-500 mb-4">You haven't added any materials yet.</p>
+          <p className="text-gray-500 mb-4">
+            You haven't added any materials yet.
+          </p>
           <button
             onClick={() => setShowCreateForm(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -238,11 +255,18 @@ const MaterialsList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {materials.map((material) => (
-                  <tr key={material.id} className={!material.active ? 'bg-gray-50' : ''}>
+                {materials.map(material => (
+                  <tr
+                    key={material.id}
+                    className={!material.active ? 'bg-gray-50' : ''}
+                  >
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{material.name}</div>
-                      <div className="text-sm text-gray-500 truncate max-w-xs">{material.description}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {material.name}
+                      </div>
+                      <div className="text-sm text-gray-500 truncate max-w-xs">
+                        {material.description}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -301,7 +325,7 @@ const MaterialsList = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <h2 className="text-xl font-semibold mb-4">Edit Material</h2>
-            
+
             <form onSubmit={handleUpdateMaterial}>
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
@@ -316,7 +340,7 @@ const MaterialsList = () => {
                   required
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Description
@@ -330,7 +354,7 @@ const MaterialsList = () => {
                   required
                 ></textarea>
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Unit
@@ -352,7 +376,7 @@ const MaterialsList = () => {
                   <option value="m3">Cubic Meter (m³)</option>
                 </select>
               </div>
-              
+
               <div className="mb-6">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Specifications
@@ -365,7 +389,7 @@ const MaterialsList = () => {
                   rows="3"
                 ></textarea>
               </div>
-              
+
               <div className="flex justify-between">
                 <button
                   type="button"

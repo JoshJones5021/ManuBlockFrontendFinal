@@ -14,14 +14,14 @@ const Profile = () => {
   const [message, setMessage] = useState({ text: '', type: '' });
   const [adminWallet, setAdminWallet] = useState(null);
 
-  // For non-admin users, fetch the admin wallet to display
   useEffect(() => {
     const fetchAdminWallet = async () => {
-      // Only fetch if current user is not an admin
       if (currentUser && currentUser.role !== 'ADMIN') {
         try {
           const response = await adminService.getAllUsers();
-          const admins = response.data.filter(user => user.role === 'ADMIN' && user.walletAddress);
+          const admins = response.data.filter(
+            user => user.role === 'ADMIN' && user.walletAddress
+          );
           if (admins.length > 0) {
             setAdminWallet(admins[0].walletAddress);
           }
@@ -34,59 +34,64 @@ const Profile = () => {
     fetchAdminWallet();
   }, [currentUser]);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: value,
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setMessage({ text: '', type: '' });
 
     try {
-      // Call your update profile API here
-      // For now, just simulate success
       setTimeout(() => {
         setMessage({ text: 'Profile updated successfully!', type: 'success' });
         setIsEditing(false);
         setLoading(false);
       }, 1000);
     } catch (error) {
-      setMessage({ text: 'Failed to update profile. Please try again.', type: 'error' });
+      setMessage({
+        text: 'Failed to update profile. Please try again.',
+        type: 'error',
+      });
       setLoading(false);
     }
   };
 
   const handleConnectWallet = async () => {
-    // Only admin users can connect a wallet
     if (currentUser.role !== 'ADMIN') {
-      setMessage({ 
-        text: 'Only admin users can connect a wallet. Your operations will use the admin wallet automatically.', 
-        type: 'info' 
+      setMessage({
+        text: 'Only admin users can connect a wallet. Your operations will use the admin wallet automatically.',
+        type: 'info',
       });
       return;
     }
 
     try {
-      // Check if MetaMask is installed
       if (window.ethereum) {
-        // Request account access
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await window.ethereum.request({
+          method: 'eth_requestAccounts',
+        });
         setWalletAddress(accounts[0]);
-        
-        // Call the connectWallet function from the auth context
+
         await connectWallet(accounts[0]);
-        
+
         setMessage({ text: 'Wallet connected successfully!', type: 'success' });
       } else {
-        setMessage({ text: 'MetaMask is not installed. Please install it to connect your wallet.', type: 'error' });
+        setMessage({
+          text: 'MetaMask is not installed. Please install it to connect your wallet.',
+          type: 'error',
+        });
       }
     } catch (error) {
-      setMessage({ text: 'Failed to connect wallet: ' + error.message, type: 'error' });
+      setMessage({
+        text: 'Failed to connect wallet: ' + error.message,
+        type: 'error',
+      });
     }
   };
 
@@ -95,11 +100,15 @@ const Profile = () => {
       <h1 className="text-2xl font-semibold mb-6">User Profile</h1>
 
       {message.text && (
-        <div className={`p-4 mb-6 rounded-md ${
-          message.type === 'success' ? 'bg-green-100 text-green-700' : 
-          message.type === 'info' ? 'bg-blue-100 text-blue-700' : 
-          'bg-red-100 text-red-700'
-        }`}>
+        <div
+          className={`p-4 mb-6 rounded-md ${
+            message.type === 'success'
+              ? 'bg-green-100 text-green-700'
+              : message.type === 'info'
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-red-100 text-red-700'
+          }`}
+        >
           {message.text}
         </div>
       )}
@@ -128,7 +137,10 @@ const Profile = () => {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor="username"
+                >
                   Username
                 </label>
                 <input
@@ -144,7 +156,10 @@ const Profile = () => {
                 />
               </div>
               <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor="email"
+                >
                   Email
                 </label>
                 <input
@@ -164,7 +179,10 @@ const Profile = () => {
                   Role
                 </label>
                 <div className="py-2 px-3 bg-gray-100 border rounded text-gray-700">
-                  {currentUser?.role ? currentUser.role.charAt(0) + currentUser.role.slice(1).toLowerCase() : 'Not specified'}
+                  {currentUser?.role
+                    ? currentUser.role.charAt(0) +
+                      currentUser.role.slice(1).toLowerCase()
+                    : 'Not specified'}
                 </div>
               </div>
             </div>
@@ -189,10 +207,9 @@ const Profile = () => {
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
         <div className="p-6">
           <h2 className="text-xl font-medium mb-6">Blockchain Wallet</h2>
-          
+
           {/* Display different wallet sections based on user role */}
           {currentUser.role === 'ADMIN' ? (
-            // Admin wallet section - allows connecting wallets
             <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-2">
                 Admin Wallet Status
@@ -203,7 +220,8 @@ const Profile = () => {
                     Connected: {currentUser.walletAddress}
                   </div>
                   <p className="text-sm text-gray-500 mt-1">
-                    This wallet address is used for blockchain transactions for all users.
+                    This wallet address is used for blockchain transactions for
+                    all users.
                   </p>
                 </div>
               ) : (
@@ -212,17 +230,18 @@ const Profile = () => {
                     No wallet connected
                   </div>
                   <p className="text-sm text-red-500 mt-1">
-                    <strong>Important:</strong> As an admin, you need to connect a wallet to enable blockchain features for all users.
+                    <strong>Important:</strong> As an admin, you need to connect
+                    a wallet to enable blockchain features for all users.
                   </p>
                 </div>
               )}
-              
+
               {!currentUser?.walletAddress && (
                 <div className="mt-4">
                   <input
                     type="text"
                     value={walletAddress}
-                    onChange={(e) => setWalletAddress(e.target.value)}
+                    onChange={e => setWalletAddress(e.target.value)}
                     placeholder="Enter wallet address manually or connect MetaMask"
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-4"
                   />
@@ -237,9 +256,15 @@ const Profile = () => {
                       onClick={() => {
                         if (walletAddress) {
                           connectWallet(walletAddress);
-                          setMessage({ text: 'Wallet connected successfully!', type: 'success' });
+                          setMessage({
+                            text: 'Wallet connected successfully!',
+                            type: 'success',
+                          });
                         } else {
-                          setMessage({ text: 'Please enter a wallet address', type: 'error' });
+                          setMessage({
+                            text: 'Please enter a wallet address',
+                            type: 'error',
+                          });
                         }
                       }}
                       className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex-1"
@@ -252,28 +277,35 @@ const Profile = () => {
               )}
             </div>
           ) : (
-            // Non-admin wallet section - shows admin wallet info
             <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-2">
                 Blockchain Wallet Status
               </label>
-              
+
               <div className="py-2 px-3 bg-blue-50 border border-blue-200 rounded text-blue-700">
-                <p className="font-medium">Using Admin Wallet for Blockchain Operations</p>
+                <p className="font-medium">
+                  Using Admin Wallet for Blockchain Operations
+                </p>
                 {adminWallet ? (
                   <div className="mt-2 text-sm">
-                    <span className="bg-blue-100 px-2 py-1 rounded">Admin wallet connected</span>
+                    <span className="bg-blue-100 px-2 py-1 rounded">
+                      Admin wallet connected
+                    </span>
                     <p className="mt-2 text-gray-600">
-                      Your operations are using the admin's wallet for blockchain transactions.
-                      This ensures consistent blockchain tracking across all users.
+                      Your operations are using the admin's wallet for
+                      blockchain transactions. This ensures consistent
+                      blockchain tracking across all users.
                     </p>
                   </div>
                 ) : (
                   <div className="mt-2 text-sm text-yellow-600">
-                    <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded">No admin wallet connected</span>
+                    <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                      No admin wallet connected
+                    </span>
                     <p className="mt-2">
-                      Blockchain operations are currently unavailable because no admin wallet is connected.
-                      Please contact your administrator to enable blockchain features.
+                      Blockchain operations are currently unavailable because no
+                      admin wallet is connected. Please contact your
+                      administrator to enable blockchain features.
                     </p>
                   </div>
                 )}
@@ -286,28 +318,13 @@ const Profile = () => {
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
         <div className="p-6">
           <h2 className="text-xl font-medium mb-6">Account Actions</h2>
-          
+
           <div className="space-y-4">
-            <div>
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to reset your password?')) {
-                    // Password reset functionality would go here
-                    setMessage({ text: 'Password reset email sent!', type: 'success' });
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full md:w-auto"
-              >
-                Reset Password
-              </button>
-            </div>
-            
             <div>
               <button
                 onClick={() => {
                   if (window.confirm('Are you sure you want to log out?')) {
                     logout();
-                    // Redirect happens automatically via the auth context
                   }
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 w-full md:w-auto"

@@ -1,9 +1,8 @@
-// src/components/supplier/MaterialCreationForm.jsx - Fixed to handle undefined supplyChains
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supplierService } from '../../services/api';
 
-const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add default empty array
+const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -11,35 +10,34 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
     name: '',
     description: '',
     quantity: 0,
-    unit: 'kg', // Default unit
+    unit: 'kg',
     specifications: '',
     supplierId: currentUser?.id,
-    supplyChainId: ''
+    supplyChainId: '',
   });
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'quantity' ? parseFloat(value) : value
+      [name]: name === 'quantity' ? parseFloat(value) : value,
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    
+
     if (!formData.supplyChainId) {
       setError('Please select a supply chain');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await supplierService.createMaterial(formData);
-      
-      // Reset form
+
       setFormData({
         name: '',
         description: '',
@@ -47,9 +45,9 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
         unit: 'kg',
         specifications: '',
         supplierId: currentUser?.id,
-        supplyChainId: formData.supplyChainId // Keep the selected supply chain
+        supplyChainId: formData.supplyChainId,
       });
-      
+
       if (onSuccess) {
         onSuccess(response.data);
       }
@@ -64,13 +62,13 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">Create New Material</h2>
-      
+
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
@@ -86,7 +84,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Supply Chain
@@ -99,15 +97,16 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
               required
             >
               <option value="">Select Supply Chain</option>
-              {Array.isArray(supplyChains) && supplyChains.map(chain => (
-                <option key={chain.id} value={chain.id}>
-                  {chain.name}
-                </option>
-              ))}
+              {Array.isArray(supplyChains) &&
+                supplyChains.map(chain => (
+                  <option key={chain.id} value={chain.id}>
+                    {chain.name}
+                  </option>
+                ))}
             </select>
           </div>
         </div>
-        
+
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2">
             Description
@@ -121,7 +120,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
             required
           ></textarea>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">
@@ -138,7 +137,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Unit
@@ -160,7 +159,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
               <option value="m3">Cubic Meter (m³)</option>
             </select>
           </div>
-          
+
           <div className="md:col-span-1">
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Blockchain Tracking
@@ -170,7 +169,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
             </div>
           </div>
         </div>
-        
+
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2">
             Specifications
@@ -184,7 +183,7 @@ const MaterialCreationForm = ({ onSuccess, supplyChains = [] }) => {  // Add def
             placeholder="Enter technical specifications, quality standards, etc."
           ></textarea>
         </div>
-        
+
         <div className="flex justify-end">
           <button
             type="submit"
