@@ -11,6 +11,7 @@ import Profile from './components/profile/profile';
 import SupplyChainsList from './components/supply-chain/SupplyChainsList';
 import SupplyChainView from './components/supply-chain/SupplyChainView';
 import UserManagement from './components/admin/UserManagement';
+import BlockchainTraceability from './components/common/BlockchainTraceability';
 
 // Import role-specific dashboards
 import AdminDashboard from './components/dashboard/AdminDashboard';
@@ -57,6 +58,7 @@ const App = () => {
             {/* Dashboard */}
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="/blockchain-traceability" element={<BlockchainTraceability />} />
             
             {/* Profile */}
             <Route path="profile" element={<Profile />} />

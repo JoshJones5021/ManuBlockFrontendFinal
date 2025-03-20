@@ -44,7 +44,8 @@ const Sidebar = () => {
     // Common items for all roles
     const items = [
       { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-      { path: '/profile', label: 'Profile', icon: '👤' }
+      { path: '/profile', label: 'Profile', icon: '👤' },
+      { path: '/blockchain-traceability', label: 'Blockchain Tracing', icon: '📱' }
     ];
     
     // Role-specific items
