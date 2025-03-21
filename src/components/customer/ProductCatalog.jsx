@@ -132,13 +132,13 @@ const ProductCatalog = () => {
 
   const handleOrderSubmit = async e => {
     e.preventDefault();
-
+  
     try {
       if (!orderFormData.shippingAddress) {
         setOrderError('Shipping address is required');
         return;
       }
-
+  
       const orderData = {
         customerId: currentUser.id,
         supplyChainId: selectedProduct.supplyChainId || supplyChains[0]?.id,
@@ -154,16 +154,38 @@ const ProductCatalog = () => {
           : null,
         deliveryNotes: orderFormData.deliveryNotes,
       };
-
-      await customerService.createOrder(orderData);
-
-      setOrderSuccess(true);
-      setOrderError(null);
-
-      setTimeout(() => {
-        setShowOrderModal(false);
-        setOrderSuccess(false);
-      }, 2000);
+  
+      const response = await customerService.createOrder(orderData);
+      
+      // Check if the response contains order data
+      if (response && response.data) {
+        // Check if the order has a special status that indicates blockchain processing is pending
+        if (response.data.status === "Requested (Pending Blockchain)") {
+          // Still consider this a success, but with a different message
+          setOrderSuccess(true);
+          setOrderError(null);
+          
+          // Optional: Display a specific message for pending blockchain status
+          // You could set a different state variable for this if needed
+          
+          setTimeout(() => {
+            setShowOrderModal(false);
+            setOrderSuccess(false);
+          }, 2000);
+        } else {
+          // Normal successful order
+          setOrderSuccess(true);
+          setOrderError(null);
+          
+          setTimeout(() => {
+            setShowOrderModal(false);
+            setOrderSuccess(false);
+          }, 2000);
+        }
+      } else {
+        // No data in response
+        setOrderError('Failed to create order. Please try again.');
+      }
     } catch (err) {
       console.error('Error creating order:', err);
       setOrderError('Failed to create order. Please try again.');
@@ -217,7 +239,10 @@ const ProductCatalog = () => {
             </svg>
             <p className="text-xl font-medium text-gray-900">
               Order Placed Successfully!
-            </p>
+              </p>
+              <p className="text-sm text-gray-600 mt-2">
+                Your order has been created. Blockchain processing may take a few moments to complete.
+              </p>
           </div>
         ) : (
           <form onSubmit={handleOrderSubmit}>

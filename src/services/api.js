@@ -25,7 +25,15 @@ const customerService = {
     return api.get(`/customer/orders/${customerId}`);
   },
   createOrder: orderData => {
-    return api.post('/customer/orders', orderData);
+    return api.post('/customer/orders', orderData)
+      .then(response => {
+        console.log('Order creation successful:', response.data);
+        return response;
+      })
+      .catch(error => {
+        console.error('Order creation failed:', error.response?.data || error.message);
+        throw error;
+      });
   },
   cancelOrder: orderId => {
     return api.post(`/customer/orders/${orderId}/cancel`);
