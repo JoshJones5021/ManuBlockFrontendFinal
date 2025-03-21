@@ -1,6 +1,3 @@
-// src/services/auth.js
-// Authentication service for login, register, and wallet connection
-
 import api from '../utils/axios';
 
 const authService = {
