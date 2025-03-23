@@ -241,9 +241,6 @@ const RecyclingTransports = () => {
                       <div className="text-sm font-medium text-gray-900">
                         {item.name || 'No name available'}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {item.type || 'No product type'}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -350,11 +347,11 @@ const RecyclingTransports = () => {
                       <div className="text-sm">
                         <p>
                           <span className="font-semibold">From:</span>{' '}
-                          {transport.source?.username || 'Unknown Customer'}
+                          {transport.sourceName || 'Unknown Customer'}
                         </p>
                         <p>
                           <span className="font-semibold">To:</span>{' '}
-                          {transport.destination?.username ||
+                          {transport.destinationName ||
                             'Unknown Manufacturer'}
                         </p>
                       </div>

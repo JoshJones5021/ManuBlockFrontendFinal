@@ -155,40 +155,50 @@ const ProductCatalog = () => {
         deliveryNotes: orderFormData.deliveryNotes,
       };
   
+      console.log('Sending order data:', orderData);
+      
+      // Set a loading state while order is being processed
+      setOrderError(null);
+      
       const response = await customerService.createOrder(orderData);
       
-      // Check if the response contains order data
-      if (response && response.data) {
-        // Check if the order has a special status that indicates blockchain processing is pending
-        if (response.data.status === "Requested (Pending Blockchain)") {
-          // Still consider this a success, but with a different message
-          setOrderSuccess(true);
-          setOrderError(null);
+      console.log('Order creation response:', response);
+      
+      // Consider the order successful if we got any valid response
+      if (response && (response.data || response.status === 200)) {
+        // Always treat as success, regardless of blockchain status
+        setOrderSuccess(true);
+        
+        // Show a message to the user indicating success
+        console.log('Order placed successfully!');
+        
+        // Close the modal after a short delay
+        setTimeout(() => {
+          setShowOrderModal(false);
+          setOrderSuccess(false);
           
-          // Optional: Display a specific message for pending blockchain status
-          // You could set a different state variable for this if needed
-          
-          setTimeout(() => {
-            setShowOrderModal(false);
-            setOrderSuccess(false);
-          }, 2000);
-        } else {
-          // Normal successful order
-          setOrderSuccess(true);
-          setOrderError(null);
-          
-          setTimeout(() => {
-            setShowOrderModal(false);
-            setOrderSuccess(false);
-          }, 2000);
-        }
+          // Refresh data to show the new order
+          fetchData();
+        }, 2000);
       } else {
-        // No data in response
-        setOrderError('Failed to create order. Please try again.');
+        // This should rarely happen - only if the request succeeded but returned empty data
+        console.warn('Order API returned empty response');
+        setOrderError('Order may have been created but we received an incomplete response. Please check your orders.');
       }
     } catch (err) {
+      // Handle specific error cases
       console.error('Error creating order:', err);
-      setOrderError('Failed to create order. Please try again.');
+      
+      if (err.response && err.response.data && err.response.data.error) {
+        // Server returned a specific error message
+        setOrderError(err.response.data.error);
+      } else if (err.message && err.message.includes('timeout')) {
+        // Handle timeout errors specifically
+        setOrderError('The request timed out. Your order may still have been created. Please check your orders.');
+      } else {
+        // Generic error
+        setOrderError('Failed to create order. Please try again.');
+      }
     }
   };
 

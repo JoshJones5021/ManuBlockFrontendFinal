@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { manufacturerService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import ProcessMaterialsModal from './ProcessMaterialsModal';
 
 const RecycledItemsProcessing = () => {
   const { currentUser } = useAuth();
@@ -21,7 +22,7 @@ const RecycledItemsProcessing = () => {
     try {
       setLoading(true);
 
-      const [pendingResponse, materialsResponse, productsResponse] =
+      const [pendingResponse, materialsResponse] =
         await Promise.all([
           manufacturerService.getPendingRecycledItems(currentUser.id),
           manufacturerService.getRecycledMaterials(currentUser.id),
@@ -41,22 +42,35 @@ const RecycledItemsProcessing = () => {
 
   const handleProcessMaterials = async item => {
     setSelectedItem(item);
+    setError(null);
 
     try {
-      const response = await manufacturerService.getProductMaterials(item.id);
-      const productMaterials = response.data || [];
-
-      if (productMaterials.length > 0) {
-        setMaterialsFormData(
-          productMaterials.map(material => ({
-            name: material.name,
-            quantity: 0,
-            unit: material.unit,
-            description: material.description,
-            specifications: material.specifications,
-          }))
-        );
+      // Get all materials this manufacturer has, whether from suppliers or recycling
+      const materialsResponse = await manufacturerService.getAvailableMaterials(currentUser.id);
+      let availableMaterials = materialsResponse?.data || [];
+      
+      // If we have some previous materials, use those types as templates
+      if (availableMaterials.length > 0) {
+        // Get unique material types
+        const uniqueMaterials = [];
+        const materialNames = new Set();
+        
+        availableMaterials.forEach(material => {
+          if (!materialNames.has(material.name)) {
+            materialNames.add(material.name);
+            uniqueMaterials.push({
+              name: material.name,
+              quantity: 0,
+              unit: material.unit || 'kg',
+              description: material.description || `Recycled ${material.name}`,
+              specifications: material.specifications || '',
+            });
+          }
+        });
+        
+        setMaterialsFormData(uniqueMaterials);
       } else {
+        // Fallback to common materials if manufacturer has no materials history
         setMaterialsFormData([
           {
             name: 'Aluminum',
@@ -93,8 +107,8 @@ const RecycledItemsProcessing = () => {
 
       setShowMaterialsModal(true);
     } catch (err) {
-      console.error('Error fetching product materials:', err);
-      setError('Failed to retrieve original materials for this product.');
+      console.error('Error preparing materials form:', err);
+      setError('Failed to retrieve materials information. Please try again.');
     }
   };
 
@@ -137,7 +151,7 @@ const RecycledItemsProcessing = () => {
       }, 3000);
     } catch (err) {
       console.error('Error processing recycled item into materials:', err);
-      setError('Failed to process item into materials. Please try again.');
+      setError('Failed to process item into materials: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -168,109 +182,6 @@ const RecycledItemsProcessing = () => {
         );
     }
   };
-
-  const MaterialsProcessingModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-lg w-full">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Process into Materials</h2>
-          <button
-            onClick={() => setShowMaterialsModal(false)}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
-        </div>
-
-        <form onSubmit={submitMaterialsProcess}>
-          <div className="mb-4">
-            <p className="text-gray-700 mb-2">
-              <span className="font-bold">Product:</span>{' '}
-              {selectedItem?.productName || 'Recycled Item'}
-            </p>
-            <p className="text-gray-700 mb-2">
-              <span className="font-bold">Original Owner:</span>{' '}
-              {selectedItem?.customerName || 'Unknown Customer'}
-            </p>
-            <p className="text-gray-700 mb-2">
-              <span className="font-bold">Received Date:</span>{' '}
-              {formatDate(selectedItem?.receivedDate)}
-            </p>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Recovered Materials <span className="text-red-500">*</span>
-            </label>
-            <p className="text-sm text-gray-600 mb-2">
-              Specify the quantity of each material recovered from this item:
-            </p>
-
-            <div className="space-y-3 max-h-64 overflow-y-auto p-2 border rounded">
-              {materialsFormData.map((material, index) => (
-                <div key={index} className="flex items-center">
-                  <div className="w-1/2">
-                    <label className="text-sm font-medium text-gray-700">
-                      {material.name}
-                    </label>
-                  </div>
-                  <div className="w-1/2 flex">
-                    <input
-                      type="number"
-                      value={material.quantity}
-                      onChange={e =>
-                        handleMaterialQuantityChange(index, e.target.value)
-                      }
-                      min="0"
-                      step="0.01"
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    />
-                    <span className="ml-2 flex items-center text-gray-700">
-                      {material.unit}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end mt-6">
-            <button
-              type="button"
-              onClick={() => setShowMaterialsModal(false)}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Process Materials
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-6">
@@ -496,7 +407,7 @@ const RecycledItemsProcessing = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatDate(material.processDate)}
+                          {formatDate(material.processDate || material.updatedAt)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -512,8 +423,21 @@ const RecycledItemsProcessing = () => {
           )}
         </div>
       </div>
-      {/* Modals */}
-      {showMaterialsModal && selectedItem && <MaterialsProcessingModal />}
+      
+      {/* Use the separate modal component */}
+      {showMaterialsModal && selectedItem && (
+        <ProcessMaterialsModal
+        selectedItem={selectedItem}
+        materialsFormData={materialsFormData}
+        onClose={() => {
+          setShowMaterialsModal(false);
+          setError(null); 
+        }}
+        onMaterialQuantityChange={handleMaterialQuantityChange}
+        onSubmit={submitMaterialsProcess}
+        error={error}
+      />
+      )}
     </div>
   );
 };

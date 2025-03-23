@@ -76,8 +76,8 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
 
             <p className="mb-4">
               {actionType === 'pickup'
-                ? `Are you sure you want to record pickup for transport ${transport.trackingNumber}?`
-                : `Are you sure you want to record delivery for transport ${transport.trackingNumber}?`}
+                ? `${transport.trackingNumber}`
+                : `${transport.trackingNumber}`}
             </p>
 
             <div className="mb-4 bg-gray-50 p-3 rounded-md">
@@ -90,8 +90,8 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
                   {actionType === 'pickup' ? 'Pickup From:' : 'Delivery To:'}
                 </span>{' '}
                 {actionType === 'pickup'
-                  ? transport.source?.username || 'Unknown'
-                  : transport.destination?.username || 'Unknown'}
+                  ? transport.sourceName || 'Unknown'
+                  : transport.destinationName || 'Unknown'}
               </p>
               <p>
                 <span className="font-medium">Scheduled Date:</span>{' '}
