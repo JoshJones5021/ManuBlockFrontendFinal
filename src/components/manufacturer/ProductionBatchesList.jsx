@@ -468,21 +468,21 @@ const ProductionBatchesList = () => {
 
   const handleRejectSubmit = async e => {
     e.preventDefault();
-
+  
     try {
       if (!rejectionReason) {
         setError('Please provide rejection reason.');
         return;
       }
-
-      await manufacturerService.rejectProductionBatch(selectedBatch.id, {
-        reason: rejectionReason,
-      });
+  
+      // Pass the rejectionReason directly as a string, not as an object
+      await manufacturerService.rejectProductionBatch(selectedBatch.id, rejectionReason);
+      
       setShowRejectModal(false);
       setSuccessMessage('Production batch rejected.');
       setShowSuccessAlert(true);
       fetchData(); 
-
+  
       setTimeout(() => {
         setShowSuccessAlert(false);
       }, 3000);
