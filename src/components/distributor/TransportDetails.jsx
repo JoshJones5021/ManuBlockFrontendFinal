@@ -218,14 +218,14 @@ const TransportDetails = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">From</h3>
               <p className="text-base">
-                {transport.source?.username || 'Unknown Source'}
+                {transport.sourceName || 'Unknown Source'}
               </p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">To</h3>
               <p className="text-base">
-                {transport.destination?.username || 'Unknown Destination'}
+                {transport.destinationName || 'Unknown Destination'}
               </p>
             </div>
 
