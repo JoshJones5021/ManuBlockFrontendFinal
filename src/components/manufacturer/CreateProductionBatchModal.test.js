@@ -136,7 +136,7 @@ describe('CreateProductionBatchModal Component', () => {
     
     render(<CreateProductionBatchModal {...propsAllRequired} />);
     const submitButton = screen.getByRole('button', { name: /Create Batch/i });
-    expect(submitButton).not.toBeDisabled();
+    expect(submitButton).toBeEnabled();
   });
   
   test('shows warning when no supply chains are available', () => {

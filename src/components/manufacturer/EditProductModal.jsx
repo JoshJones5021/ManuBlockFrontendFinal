@@ -216,7 +216,7 @@ const EditProductModal = ({
                         className="text-sm flex-grow"
                       >
                         {material.name} ({material.unit}) -{' '}
-                        {material.supplier.username}
+                        {material.supplier?.username || 'Unknown Supplier'}
                       </label>
                       {selectedMaterial && (
                         <div className="flex items-center">

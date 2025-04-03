@@ -57,7 +57,7 @@ describe('SupplierDashboard Component', () => {
     renderWithRouter(<SupplierDashboard />);
     
     // Check for the dashboard title
-    const dashboardTitle = await waitFor(() => screen.getByText('Supplier Dashboard'));
+    const dashboardTitle = await screen.findByText('Supplier Dashboard');
     expect(dashboardTitle).toBeInTheDocument();
   });
 
@@ -65,9 +65,7 @@ describe('SupplierDashboard Component', () => {
     renderWithRouter(<SupplierDashboard />);
     
     // Look for the specific heading element
-    const materialsHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Materials Overview' })
-    );
+    const materialsHeading = await screen.findByRole('heading', { name: 'Materials Overview' });
     expect(materialsHeading).toBeInTheDocument();
   });
 
@@ -75,9 +73,7 @@ describe('SupplierDashboard Component', () => {
     renderWithRouter(<SupplierDashboard />);
     
     // Look for the specific heading element
-    const requestsHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Pending Material Requests' })
-    );
+    const requestsHeading = await screen.findByRole('heading', { name: 'Pending Material Requests' });
     expect(requestsHeading).toBeInTheDocument();
   });
 
@@ -85,9 +81,7 @@ describe('SupplierDashboard Component', () => {
     renderWithRouter(<SupplierDashboard />);
     
     // Wait for the quick actions heading to appear
-    await waitFor(() => 
-      screen.getByRole('heading', { name: 'Quick Actions' })
-    );
+    await screen.findByRole('heading', { name: 'Quick Actions' });
     
     // Find links by their parent elements for more specificity
     const quickActionsSection = screen.getByRole('heading', { name: 'Quick Actions' }).closest('div').parentElement;
@@ -106,9 +100,7 @@ describe('SupplierDashboard Component', () => {
     renderWithRouter(<SupplierDashboard />);
     
     // Wait for the specific heading to appear
-    const workflowHeading = await waitFor(() => 
-      screen.getByText('Supplier Workflow Guide')
-    );
+    const workflowHeading = await screen.findByText('Supplier Workflow Guide');
     expect(workflowHeading).toBeInTheDocument();
     
     // Check for workflow steps by role

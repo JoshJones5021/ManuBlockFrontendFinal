@@ -80,7 +80,7 @@ describe('OrderTracking Component', () => {
     customerService.trackOrder.mockResolvedValueOnce({ data: mockTrackingResult });
 
     await act(async () => render(<OrderTracking />));
-    await waitFor(() => screen.getByText('Track Order'));
+    await screen.findByText('Track Order');
 
     const input = screen.getByPlaceholderText('Enter order number or tracking number');
     const button = screen.getByText('Track Order');
@@ -116,7 +116,7 @@ describe('OrderTracking Component', () => {
     customerService.trackOrder.mockRejectedValueOnce(new Error('Tracking Error'));
 
     await act(async () => render(<OrderTracking />));
-    await waitFor(() => screen.getByText('Track Order'));
+    await screen.findByText('Track Order');
 
     const input = screen.getByPlaceholderText('Enter order number or tracking number');
     const button = screen.getByText('Track Order');

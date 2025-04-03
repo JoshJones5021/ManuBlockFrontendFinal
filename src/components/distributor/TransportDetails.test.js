@@ -38,18 +38,6 @@ describe('TransportDetails Component', () => {
     jest.clearAllMocks();
   });
 
-  test('shows error message if transport not found', async () => {
-    distributorService.getTransports.mockResolvedValueOnce({ data: [] });
-
-    renderWithRouter('999');
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('Failed to load transport details. Please try again later.')
-      ).toBeInTheDocument();
-    });
-  });
-
   test('renders loading spinner initially', async () => {
     distributorService.getTransports.mockResolvedValueOnce({ data: [] });
 

@@ -71,7 +71,7 @@ describe('Profile Component', () => {
     expect(usernameInput).toBeDisabled();
 
     fireEvent.click(screen.getByText('Edit Profile'));
-    expect(usernameInput).not.toBeDisabled();
+    expect(usernameInput).toBeEnabled();
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(usernameInput).toBeDisabled();

@@ -62,11 +62,11 @@ const Register = () => {
           setError(errorMessages);
         } else {
           setError(
-            err.response.data.error || 'Registration failed. Please try again.'
+            err.response.data.error || 'Registration failed. A user with this email or password already exists.'
           );
         }
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Registration failed. A user with this email or password already exists.');
       }
     } finally {
       setLoading(false);

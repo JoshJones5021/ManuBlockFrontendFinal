@@ -76,7 +76,7 @@ describe('MaterialAllocationManagement Component', () => {
   test('opens confirmation modal', async () => {
     render(<MaterialAllocationManagement />);
 
-    await waitFor(() => screen.getByText('REQ-2023-001'));
+    await screen.findByText('REQ-2023-001');
 
     fireEvent.click(screen.getByText('Allocate Materials'));
 
@@ -87,10 +87,10 @@ describe('MaterialAllocationManagement Component', () => {
   test('allocates materials successfully', async () => {
     render(<MaterialAllocationManagement />);
 
-    await waitFor(() => screen.getByText('REQ-2023-001'));
+    await screen.findByText('REQ-2023-001');
 
     fireEvent.click(screen.getByText('Allocate Materials'));
-    await waitFor(() => screen.getByText('Confirm Material Allocation'));
+    await screen.findByText('Confirm Material Allocation');
 
     fireEvent.click(screen.getByText('Confirm Allocation'));
 
@@ -106,9 +106,9 @@ describe('MaterialAllocationManagement Component', () => {
 
     render(<MaterialAllocationManagement />);
 
-    await waitFor(() => screen.getByText('REQ-2023-001'));
+    await screen.findByText('REQ-2023-001');
     fireEvent.click(screen.getByText('Allocate Materials'));
-    await waitFor(() => screen.getByText('Confirm Material Allocation'));
+    await screen.findByText('Confirm Material Allocation');
 
     fireEvent.click(screen.getByText('Confirm Allocation'));
 
@@ -120,10 +120,10 @@ describe('MaterialAllocationManagement Component', () => {
   test('closes confirmation modal on cancel', async () => {
     render(<MaterialAllocationManagement />);
 
-    await waitFor(() => screen.getByText('REQ-2023-001'));
+    await screen.findByText('REQ-2023-001');
     fireEvent.click(screen.getByText('Allocate Materials'));
 
-    await waitFor(() => screen.getByText('Confirm Material Allocation'));
+    await screen.findByText('Confirm Material Allocation');
     fireEvent.click(screen.getByText('Cancel'));
 
     await waitFor(() => {
@@ -136,7 +136,7 @@ describe('MaterialAllocationManagement Component', () => {
   test('displays information panel', async () => {
     render(<MaterialAllocationManagement />);
 
-    await waitFor(() => screen.getByText('Material Allocation Management'));
+    await screen.findByText('Material Allocation Management');
 
     expect(screen.getByText('What is Material Allocation?')).toBeInTheDocument();
     expect(screen.getByText(/Allocation creates blockchain records/i)).toBeInTheDocument();
@@ -145,7 +145,7 @@ describe('MaterialAllocationManagement Component', () => {
   test('displays formatted dates correctly', async () => {
     render(<MaterialAllocationManagement />);
 
-    await waitFor(() => screen.getByText('REQ-2023-001'));
+    await screen.findByText('REQ-2023-001');
 
     const createdDate = new Date('2023-11-01').toLocaleDateString();
     const deliveryDate = new Date('2023-12-15').toLocaleDateString();

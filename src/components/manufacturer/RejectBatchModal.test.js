@@ -95,7 +95,7 @@ describe('RejectBatchModal Component', () => {
     const submitButton = screen.getByRole('button', { name: /Reject Batch/i });
     
     // Button should be enabled when reason is provided
-    expect(submitButton).not.toBeDisabled();
+    expect(submitButton).toBeEnabled();
   });
 
   test('displays error message when error prop is provided', () => {

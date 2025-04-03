@@ -24,6 +24,10 @@ const authService = {
   getAllRoles: () => {
     return api.get('/users/roles');
   },
+
+  updateUser: (userId, userData) => {
+    return api.post(`/users/${userId}`, userData);
+  },
 };
 
 export default authService;

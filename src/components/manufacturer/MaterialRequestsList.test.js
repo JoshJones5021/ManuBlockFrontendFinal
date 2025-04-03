@@ -94,7 +94,7 @@ describe('MaterialRequestsList Component', () => {
 
   test('renders fetched material requests', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.getByText('REQ001')).toBeInTheDocument());
+    await screen.findByText('REQ001');
     expect(screen.getByText('Supplier A')).toBeInTheDocument();
     expect(screen.getByText('Chain A')).toBeInTheDocument();
     expect(screen.getByText('Requested')).toBeInTheDocument();
@@ -103,12 +103,12 @@ describe('MaterialRequestsList Component', () => {
   test('renders empty state if no requests', async () => {
     manufacturerService.getMaterialRequests.mockResolvedValueOnce({ data: [] });
     renderComponent();
-    await waitFor(() => expect(screen.getByText(/No material requests found/i)).toBeInTheDocument());
+    await screen.findByText(/No material requests found/i);
   });
 
   test('opens and closes the create modal', async () => {
     renderComponent();
-    await waitFor(() => screen.getByText('REQ001'));
+    await screen.findByText('REQ001');
     fireEvent.click(screen.getByRole('button', { name: /Create New Request/i }));
     expect(screen.getByTestId('create-material-request-modal')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('cancel-button'));
@@ -118,14 +118,14 @@ describe('MaterialRequestsList Component', () => {
   test('disables create button if no supply chain', async () => {
     supplyChainService.getSupplyChainsByUser.mockResolvedValueOnce([]);
     renderComponent();
-    await waitFor(() => screen.getByText(/You need to be part of a finalized supply chain/i));
+    await screen.findByText(/You need to be part of a finalized supply chain/i);
     const createBtn = screen.getByRole('button', { name: /Create New Request/i });
     expect(createBtn).toBeDisabled();
   });
 
   test('renders view details link', async () => {
     renderComponent();
-    await waitFor(() => screen.getByText('REQ001'));
+    await screen.findByText('REQ001');
     const viewLink = screen.getByText('View Details');
     expect(viewLink).toBeInTheDocument();
     expect(viewLink.closest('a')).toHaveAttribute('href', '/manufacturer/material-requests/1');
@@ -139,7 +139,7 @@ describe('MaterialRequestsList Component', () => {
     }];
     manufacturerService.getMaterialRequests.mockResolvedValueOnce({ data: modifiedRequests });
     renderComponent();
-    await waitFor(() => screen.getByText('REQ001'));
+    await screen.findByText('REQ001');
     expect(screen.getByText(/No date specified/i)).toBeInTheDocument();
   });
 });

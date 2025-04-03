@@ -64,9 +64,7 @@ describe('DistributorDashboard Component', () => {
     renderWithRouter(<DistributorDashboard />);
     
     // Check for the dashboard title
-    const dashboardTitle = await waitFor(() => 
-      screen.getByText('Distributor Dashboard')
-    );
+    const dashboardTitle = await screen.findByText('Distributor Dashboard');
     expect(dashboardTitle).toBeInTheDocument();
   });
 
@@ -89,39 +87,33 @@ describe('DistributorDashboard Component', () => {
     renderWithRouter(<DistributorDashboard />);
     
     // Look for the Material Pickups heading
-    const pickupsHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Material Pickups' })
-    );
+    const pickupsHeading = await screen.findByRole('heading', { name: 'Material Pickups' });
     expect(pickupsHeading).toBeInTheDocument();
     
     // Check for schedule button
     const scheduleButton = screen.getByText('Schedule Material Pickup');
     expect(scheduleButton).toBeInTheDocument();
-    expect(scheduleButton.getAttribute('href')).toBe('/distributor/transports');
+    expect(scheduleButton).toHaveAttribute('href', '/distributor/transports');
   });
 
   test('renders Product Deliveries section', async () => {
     renderWithRouter(<DistributorDashboard />);
     
     // Look for the Product Deliveries heading
-    const deliveriesHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Product Deliveries' })
-    );
+    const deliveriesHeading = await screen.findByRole('heading', { name: 'Product Deliveries' });
     expect(deliveriesHeading).toBeInTheDocument();
     
     // Check for schedule button
     const scheduleButton = screen.getByText('Schedule Product Delivery');
     expect(scheduleButton).toBeInTheDocument();
-    expect(scheduleButton.getAttribute('href')).toBe('/distributor/transports');
+    expect(scheduleButton).toHaveAttribute('href', '/distributor/transports');
   });
 
   test('renders Recent Transports section', async () => {
     renderWithRouter(<DistributorDashboard />);
     
     // Look for Recent Transports heading
-    const recentTransportsHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Recent Transports' })
-    );
+    const recentTransportsHeading = await screen.findByRole('heading', { name: 'Recent Transports' });
     expect(recentTransportsHeading).toBeInTheDocument();
     
     // Check for empty state message
@@ -130,16 +122,14 @@ describe('DistributorDashboard Component', () => {
     // Check for View All link
     const viewAllLink = screen.getByText('View All Transports');
     expect(viewAllLink).toBeInTheDocument();
-    expect(viewAllLink.getAttribute('href')).toBe('/distributor/transports');
+    expect(viewAllLink).toHaveAttribute('href', '/distributor/transports');
   });
 
   test('renders workflow guide with steps', async () => {
     renderWithRouter(<DistributorDashboard />);
     
     // Look for Workflow Guide heading
-    const workflowHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Distributor Workflow Guide' })
-    );
+    const workflowHeading = await screen.findByRole('heading', { name: 'Distributor Workflow Guide' });
     expect(workflowHeading).toBeInTheDocument();
     
     // Check for workflow steps

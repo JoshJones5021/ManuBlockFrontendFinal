@@ -64,9 +64,7 @@ describe('CustomerDashboard Component', () => {
     renderWithRouter(<CustomerDashboard />);
     
     // Check for the dashboard title
-    const dashboardTitle = await waitFor(() => 
-      screen.getByText('Customer Dashboard')
-    );
+    const dashboardTitle = await screen.findByText('Customer Dashboard');
     expect(dashboardTitle).toBeInTheDocument();
   });
 
@@ -74,9 +72,7 @@ describe('CustomerDashboard Component', () => {
     renderWithRouter(<CustomerDashboard />);
     
     // Check for welcome message - matches actual rendered content
-    const welcomeMessage = await waitFor(() => 
-      screen.getByText(/Welcome back, customer!/)
-    );
+    const welcomeMessage = await screen.findByText(/Welcome back, customer!/);
     expect(welcomeMessage).toBeInTheDocument();
   });
 
@@ -99,9 +95,7 @@ describe('CustomerDashboard Component', () => {
     renderWithRouter(<CustomerDashboard />);
     
     // Look for Recent Orders heading
-    const ordersHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Recent Orders' })
-    );
+    const ordersHeading = await screen.findByRole('heading', { name: 'Recent Orders' });
     expect(ordersHeading).toBeInTheDocument();
     
     // Check for empty state message
@@ -110,16 +104,14 @@ describe('CustomerDashboard Component', () => {
     // Check for View All Orders link
     const ordersLink = screen.getByText('View All Orders');
     expect(ordersLink).toBeInTheDocument();
-    expect(ordersLink.getAttribute('href')).toBe('/customer/orders');
+    expect(ordersLink).toHaveAttribute('href', '/customer/orders');
   });
 
   test('renders Featured Products section', async () => {
     renderWithRouter(<CustomerDashboard />);
     
     // Look for Featured Products heading
-    const productsHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Featured Products' })
-    );
+    const productsHeading = await screen.findByRole('heading', { name: 'Featured Products' });
     expect(productsHeading).toBeInTheDocument();
     
     // Check for empty state message
@@ -128,16 +120,14 @@ describe('CustomerDashboard Component', () => {
     // Check for View All Products link
     const productsLink = screen.getByText('View All Products');
     expect(productsLink).toBeInTheDocument();
-    expect(productsLink.getAttribute('href')).toBe('/customer/products');
+    expect(productsLink).toHaveAttribute('href', '/customer/products');
   });
 
   test('renders Recycling section with action button', async () => {
     renderWithRouter(<CustomerDashboard />);
     
     // Look for Recycling heading
-    const recyclingHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Recycling' })
-    );
+    const recyclingHeading = await screen.findByRole('heading', { name: 'Recycling' });
     expect(recyclingHeading).toBeInTheDocument();
     
     // Check for recycling description
@@ -146,6 +136,6 @@ describe('CustomerDashboard Component', () => {
     // Check for Start Recycling button
     const recyclingButton = screen.getByText('Start Recycling');
     expect(recyclingButton).toBeInTheDocument();
-    expect(recyclingButton.getAttribute('href')).toBe('/customer/recycling');
+    expect(recyclingButton).toHaveAttribute('href', '/customer/recycling');
   });
 });

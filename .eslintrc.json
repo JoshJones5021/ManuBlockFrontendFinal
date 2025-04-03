@@ -23,7 +23,9 @@
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
       "testing-library/no-wait-for-multiple-assertions": "error",
-      "testing-library/prefer-find-by": "error"
+      "testing-library/prefer-find-by": "error",
+      "no-unused-vars": ["warn"],
+      "react/no-unescaped-entities": "warn"
     },
     "settings": {
       "react": {

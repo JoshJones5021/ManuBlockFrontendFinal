@@ -79,7 +79,7 @@ describe('CompleteBatchModal Component', () => {
     
     const submitButton = screen.getByRole('button', { name: /Complete Batch/i });
     
-    expect(submitButton).not.toBeDisabled();
+    expect(submitButton).toBeEnabled();
   });
 
   test('displays error message when error prop is provided', () => {

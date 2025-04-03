@@ -604,9 +604,6 @@ const ProductionBatchesList = () => {
                     Start Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Related Order
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -638,9 +635,7 @@ const ProductionBatchesList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {supplyChain
-                            ? supplyChain.name
-                            : batch.supplyChainName || 'Unknown Chain'}
+                          {batch.supplyChain?.name || 'Unknown Chain'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -661,19 +656,6 @@ const ProductionBatchesList = () => {
                             ? new Date(batch.startDate).toLocaleDateString()
                             : 'N/A'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {batch.relatedOrder ? (
-                          <div className="text-sm text-blue-600">
-                            <Link
-                              to={`/manufacturer/orders/${batch.relatedOrder.id}`}
-                            >
-                              Order #{batch.relatedOrder.orderNumber}
-                            </Link>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-500">N/A</span>
-                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-col sm:flex-row sm:space-x-2">

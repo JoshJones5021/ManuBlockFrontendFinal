@@ -104,7 +104,7 @@ describe('MaterialInventoryManagement Component', () => {
   test('deactivates material', async () => {
     window.confirm = jest.fn(() => true);
     render(<MaterialInventoryManagement />);
-    await waitFor(() => screen.getByText('Aluminum'));
+    await screen.findByText('Aluminum');
 
     fireEvent.click(screen.getAllByText('Deactivate')[0]);
     expect(window.confirm).toHaveBeenCalled();

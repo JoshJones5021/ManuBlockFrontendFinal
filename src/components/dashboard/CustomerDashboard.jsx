@@ -185,7 +185,7 @@ const CustomerDashboard = () => {
               </h2>
               <p className="text-2xl font-semibold text-gray-800">
                 {
-                  recentOrders.filter(order => order.status === 'Completed')
+                  recentOrders.filter(order => order.status === 'Delivered')
                     .length
                 }
               </p>
@@ -218,8 +218,7 @@ const CustomerDashboard = () => {
                 {
                   recentOrders.filter(
                     order =>
-                      order.status !== 'Completed' &&
-                      order.status !== 'Cancelled'
+                      order.status !== 'Requested'
                   ).length
                 }
               </p>

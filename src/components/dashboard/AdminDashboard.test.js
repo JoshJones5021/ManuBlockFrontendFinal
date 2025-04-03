@@ -51,9 +51,7 @@ describe('AdminDashboard Component', () => {
     renderWithRouter(<AdminDashboard />);
     
     // Check for the dashboard title
-    const dashboardTitle = await waitFor(() => 
-      screen.getByText('Admin Dashboard')
-    );
+    const dashboardTitle = await screen.findByText('Admin Dashboard');
     expect(dashboardTitle).toBeInTheDocument();
   });
 
@@ -75,9 +73,7 @@ describe('AdminDashboard Component', () => {
     renderWithRouter(<AdminDashboard />);
     
     // Look for the users by role section
-    const usersHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Users by Role' })
-    );
+    const usersHeading = await screen.findByRole('heading', { name: 'Users by Role' });
     expect(usersHeading).toBeInTheDocument();
     
     // Check for empty state message
@@ -88,9 +84,7 @@ describe('AdminDashboard Component', () => {
     renderWithRouter(<AdminDashboard />);
     
     // Look for recent users section heading
-    const recentUsersHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Recent Users' })
-    );
+    const recentUsersHeading = await screen.findByRole('heading', { name: 'Recent Users' });
     expect(recentUsersHeading).toBeInTheDocument();
     
     // Check for empty state message
@@ -101,9 +95,7 @@ describe('AdminDashboard Component', () => {
     renderWithRouter(<AdminDashboard />);
     
     // Look for recent supply chains section heading
-    const supplyChainHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Recent Supply Chains' })
-    );
+    const supplyChainHeading = await screen.findByRole('heading', { name: 'Recent Supply Chains' });
     expect(supplyChainHeading).toBeInTheDocument();
     
     // Check for empty state message

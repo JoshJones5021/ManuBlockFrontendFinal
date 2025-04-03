@@ -206,9 +206,9 @@ const MaterialRequestsList = () => {
       const materialsData = Array.isArray(response.data) ? response.data : [];
 
       const activeMaterials = materialsData.filter(
-        material =>
-          material && typeof material.active === 'boolean' && material.active
+        material => material && (typeof material.active !== 'boolean' || material.active)
       );
+      setMaterials(activeMaterials);
 
       setMaterials(activeMaterials);
     } catch (err) {
@@ -520,12 +520,12 @@ const MaterialRequestsList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {supplier ? supplier.username : 'Unknown Supplier'}
+                        {request.supplier ? request.supplier.username : 'Unknown Supplier'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {supplyChain ? supplyChain.name : 'Unknown Chain'}
+                        {request.supplyChain ? request.supplyChain.name : 'Unknown Chain'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

@@ -42,11 +42,7 @@ describe('OrdersList', () => {
       </Router>
     );
 
-    await waitFor(() =>
-      expect(
-        screen.getByText('No orders found for manufacturing.')
-      ).toBeInTheDocument()
-    );
+    await screen.findByText('No orders found for manufacturing.');
   });
 
   test('renders error message when fetching orders fails', async () => {
@@ -59,11 +55,7 @@ describe('OrdersList', () => {
       </Router>
     );
 
-    await waitFor(() =>
-      expect(
-        screen.getByText('Failed to load orders. Please try again later.')
-      ).toBeInTheDocument()
-    );
+    await screen.findByText('Failed to load orders. Please try again later.');
   });
 
   test('renders fetched orders with status badges and actions', async () => {
@@ -105,7 +97,7 @@ describe('OrdersList', () => {
     );
 
     // Verify orders render
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     expect(screen.getByText('Customer A')).toBeInTheDocument();
     expect(screen.getByText('ORD-002')).toBeInTheDocument();
     expect(screen.getByText('Customer B')).toBeInTheDocument();
@@ -147,7 +139,7 @@ describe('OrdersList', () => {
       </Router>
     );
 
-    await waitFor(() => expect(screen.getByText('ORD-003')).toBeInTheDocument());
+    await screen.findByText('ORD-003');
 
     expect(screen.getByText('Insufficient')).toBeInTheDocument();
     expect(screen.getByText('Create Production')).toBeInTheDocument();

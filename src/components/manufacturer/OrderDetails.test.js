@@ -69,7 +69,7 @@ describe('OrderDetails Component', () => {
 
     render(<OrderDetails />);
 
-    await waitFor(() => expect(screen.getByText(/Order #ORD-001/i)).toBeInTheDocument());
+    await screen.findByText(/Order #ORD-001/i);
     expect(screen.getByText(/John Doe/)).toBeInTheDocument();
     expect(screen.getByText(/123 Main St/)).toBeInTheDocument();
     expect(screen.getByText(/Product A/)).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe('OrderDetails Component', () => {
 
     render(<OrderDetails />);
 
-    await waitFor(() => expect(screen.getByText(/Order not found/i)).toBeInTheDocument());
+    await screen.findByText(/Order not found/i);
   });
 
   test('displays fetch error message on API failure', async () => {
@@ -89,7 +89,7 @@ describe('OrderDetails Component', () => {
 
     render(<OrderDetails />);
 
-    await waitFor(() => expect(screen.getByText(/Failed to load order details/i)).toBeInTheDocument());
+    await screen.findByText(/Failed to load order details/i);
   });
 
   test('navigates back to orders when clicking Back button', async () => {
@@ -99,7 +99,7 @@ describe('OrderDetails Component', () => {
 
     render(<OrderDetails />);
 
-    await waitFor(() => expect(screen.getByText(/Order #ORD-001/i)).toBeInTheDocument());
+    await screen.findByText(/Order #ORD-001/i);
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Orders/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/manufacturer/orders');
@@ -114,6 +114,6 @@ describe('OrderDetails Component', () => {
 
     render(<OrderDetails />);
 
-    await waitFor(() => expect(screen.getByText(/Insufficient inventory/i)).toBeInTheDocument());
+    await screen.findByText(/Insufficient inventory/i);
   });
 });

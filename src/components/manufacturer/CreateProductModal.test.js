@@ -146,7 +146,7 @@ describe('CreateProductModal Component', () => {
   test('enables Create Product button when supply chain is selected', () => {
     render(<CreateProductModal {...mockProps} />);
     const submitButton = screen.getByRole('button', { name: /Create Product/i });
-    expect(submitButton).not.toBeDisabled();
+    expect(submitButton).toBeEnabled();
   });
 
   test('shows warning when no materials are available', () => {

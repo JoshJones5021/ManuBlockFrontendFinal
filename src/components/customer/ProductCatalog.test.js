@@ -70,7 +70,7 @@ describe('ProductCatalog Component', () => {
       render(<ProductCatalog />);
     });
 
-    await waitFor(() => screen.getByText('Eco Bottle'));
+    await screen.findByText('Eco Bottle');
 
     const searchInput = screen.getByPlaceholderText('Search by name or description...');
     fireEvent.change(searchInput, { target: { value: 'Bamboo' } });
@@ -89,7 +89,7 @@ describe('ProductCatalog Component', () => {
       render(<ProductCatalog />);
     });
 
-    await waitFor(() => screen.getByText('Eco Bottle'));
+    await screen.findByText('Eco Bottle');
 
     const chainSelect = screen.getByLabelText('Supply Chain');
     fireEvent.change(chainSelect, { target: { value: '101' } });

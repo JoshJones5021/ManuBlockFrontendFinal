@@ -14,6 +14,9 @@ const adminService = {
   getNodeAuthorizationStatus: async chainId => {
     return api.get(`/node-authorization/supply-chain/${chainId}`);
   },
+  updateUser: (userId, userData) => {
+    return api.put(`/users/${userId}`, userData);
+  },
 };
 
 // Customer Services

@@ -60,7 +60,7 @@ describe('CreateMaterialRequestModal Component', () => {
   test('enables Add Material button when both material and quantity are selected', () => {
     const propsWithTempMaterial = { ...mockProps, tempMaterial: { materialId: '101', quantity: '10' } };
     render(<CreateMaterialRequestModal {...propsWithTempMaterial} />);
-    expect(screen.getAllByRole('button', { name: /Add Material/i })[0]).not.toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /Add Material/i })[0]).toBeEnabled();
   });
 
   test('disables Create Request button when required fields are missing', () => {
@@ -72,7 +72,7 @@ describe('CreateMaterialRequestModal Component', () => {
   test('enables Create Request button when all required fields are provided', () => {
     const propsWithAllRequired = { ...mockProps, formData: { ...mockProps.formData, items: [{ materialId: 101, quantity: 10 }] } };
     render(<CreateMaterialRequestModal {...propsWithAllRequired} />);
-    expect(screen.getAllByRole('button', { name: /Create Request/i })[0]).not.toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /Create Request/i })[0]).toBeEnabled();
   });
 
   test('displays error message when error prop is provided', () => {

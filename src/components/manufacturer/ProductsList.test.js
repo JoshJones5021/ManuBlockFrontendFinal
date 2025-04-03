@@ -131,7 +131,7 @@ describe('ProductsList Component', () => {
       render(<ProductsList />);
     });
 
-    await waitFor(() => screen.getByText('Create New Product'));
+    await screen.findByText('Create New Product');
     const createBtn = screen.getByText('Create New Product');
     fireEvent.click(createBtn);
 
@@ -143,7 +143,7 @@ describe('ProductsList Component', () => {
       render(<ProductsList />);
     });
 
-    await waitFor(() => screen.getAllByText('Edit'));
+    await screen.findAllByText('Edit');
     const editBtn = screen.getAllByText('Edit')[0];
     fireEvent.click(editBtn);
 
@@ -158,7 +158,7 @@ describe('ProductsList Component', () => {
       render(<ProductsList />);
     });
 
-    await waitFor(() => screen.getAllByText('Deactivate'));
+    await screen.findAllByText('Deactivate');
     const deactivateBtn = screen.getAllByText('Deactivate')[0];
     fireEvent.click(deactivateBtn);
 

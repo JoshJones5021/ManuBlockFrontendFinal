@@ -184,10 +184,10 @@ const ProductsList = () => {
 
   const handleEditProduct = product => {
     setSelectedProduct(product);
-
+  
     const initialSupplyChainId =
       supplyChains.length > 0 ? supplyChains[0].id : '';
-
+  
     setFormData({
       name: product.name,
       description: product.description,
@@ -204,11 +204,11 @@ const ProductsList = () => {
           }))
         : [],
     });
-
+  
     if (initialSupplyChainId) {
       filterMaterialsByChain(availableMaterials, initialSupplyChainId);
     }
-
+  
     setShowEditModal(true);
   };
 
@@ -533,7 +533,7 @@ const ProductsList = () => {
           onSubmit={handleCreateSubmit}
           onCancel={() => setShowCreateModal(false)}
           supplyChains={supplyChains}
-          filteredMaterials={filteredMaterials}
+          filteredMaterials={availableMaterials}
           onSupplyChainChange={handleSupplyChainChange}
         />
       )}
@@ -542,7 +542,7 @@ const ProductsList = () => {
           initialFormData={formData}
           onSubmit={handleEditSubmit}
           onCancel={() => setShowEditModal(false)}
-          filteredMaterials={filteredMaterials}
+          filteredMaterials={availableMaterials}
           onSupplyChainChange={handleSupplyChainChange}
         />
       )}

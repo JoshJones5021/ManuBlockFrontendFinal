@@ -3,17 +3,21 @@ import { useAuth } from '../../context/AuthContext';
 import { adminService } from '../../services/api';
 
 const Profile = () => {
-  const { currentUser, connectWallet, logout } = useAuth();
+  const { currentUser, setCurrentUser, connectWallet, logout } = useAuth();
+  
+  // Initialize with empty values first
   const [formData, setFormData] = useState({
-    username: currentUser?.username || '',
-    email: currentUser?.email || '',
+    username: '',
+    email: '',
   });
+  
   const [walletAddress, setWalletAddress] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [adminWallet, setAdminWallet] = useState(null);
 
+  // Fetch admin wallet
   useEffect(() => {
     const fetchAdminWallet = async () => {
       if (currentUser && currentUser.role !== 'ADMIN') {
@@ -34,30 +38,54 @@ const Profile = () => {
     fetchAdminWallet();
   }, [currentUser]);
 
+  // Update form data when currentUser changes
+  useEffect(() => {
+    if (currentUser) {
+      // Force update with the spread operator to ensure React detects the change
+      setFormData(prevData => ({
+        ...prevData,
+        username: currentUser.username || '',
+        email: currentUser.email || ''
+      }));
+    }
+  }, [currentUser]);
+
   const handleChange = e => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prevData => ({
+      ...prevData,
       [name]: value,
-    });
+    }));
   };
 
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setMessage({ text: '', type: '' });
-
+  
     try {
-      setTimeout(() => {
-        setMessage({ text: 'Profile updated successfully!', type: 'success' });
-        setIsEditing(false);
-        setLoading(false);
-      }, 1000);
+      const response = await adminService.updateUser(currentUser.id, {
+        email: formData.email,
+      });
+
+      const updatedUser = { 
+        ...currentUser, 
+        email: response.data.email,
+        sub: response.data.email 
+      };
+      
+      setCurrentUser(updatedUser);
+
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+  
+      setMessage({ text: 'Profile updated successfully!', type: 'success' });
+      setIsEditing(false);
     } catch (error) {
       setMessage({
         text: 'Failed to update profile. Please try again.',
         type: 'error',
       });
+    } finally {
       setLoading(false);
     }
   };
@@ -137,42 +165,33 @@ const Profile = () => {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label
-                  className="block text-gray-700 text-sm font-bold mb-2"
-                  htmlFor="username"
-                >
+                <label className="block text-gray-700 text-sm font-bold mb-2">
                   Username
                 </label>
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                    !isEditing ? 'bg-gray-100' : ''
-                  }`}
-                />
+                <div className="py-2 px-3 bg-gray-100 border rounded text-gray-700">
+                  {currentUser?.username
+                    ? currentUser.username
+                    : 'Not specified'}
+                </div>
               </div>
               <div>
-                <label
-                  className="block text-gray-700 text-sm font-bold mb-2"
-                  htmlFor="email"
-                >
+                <label className="block text-gray-700 text-sm font-bold mb-2">
                   Email
                 </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                    !isEditing ? 'bg-gray-100' : ''
-                  }`}
-                />
+                {!isEditing ? (
+                  <div className="py-2 px-3 bg-gray-100 border rounded text-gray-700">
+                    {currentUser?.sub ? currentUser.sub : 'Not specified'}
+                  </div>
+                ) : (
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.sub}
+                    onChange={handleChange}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2">

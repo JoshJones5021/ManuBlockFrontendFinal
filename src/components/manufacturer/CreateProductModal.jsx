@@ -241,7 +241,7 @@ const CreateProductModal = ({
                     >
                       <input
                         type="checkbox"
-                        id={`material-${material.id}`}
+                        id={`edit-material-${material.id}`}
                         checked={!!selectedMaterial}
                         onChange={e =>
                           handleMaterialChange(material, e.target.checked)
@@ -249,11 +249,11 @@ const CreateProductModal = ({
                         className="mr-2"
                       />
                       <label
-                        htmlFor={`material-${material.id}`}
+                        htmlFor={`edit-material-${material.id}`}
                         className="text-sm flex-grow"
                       >
                         {material.name} ({material.unit}) -{' '}
-                        {material.supplier.username}
+                        {material.supplier?.username || 'Unknown Supplier'}
                       </label>
                       {selectedMaterial && (
                         <div className="flex items-center">

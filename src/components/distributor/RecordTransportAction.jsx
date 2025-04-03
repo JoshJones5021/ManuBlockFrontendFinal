@@ -90,8 +90,8 @@ const RecordTransportAction = ({ transport, actionType, onComplete }) => {
                   {actionType === 'pickup' ? 'Pickup From:' : 'Delivery To:'}
                 </span>{' '}
                 {actionType === 'pickup'
-                  ? transport.sourceName || 'Unknown'
-                  : transport.destinationName || 'Unknown'}
+                  ? transport.source.username || 'Unknown'
+                  : transport.destination.username || 'Unknown'}
               </p>
               <p>
                 <span className="font-medium">Scheduled Date:</span>{' '}

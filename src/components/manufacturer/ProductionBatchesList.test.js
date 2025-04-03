@@ -108,7 +108,7 @@ describe('ProductionBatchesList Component', () => {
 
   test('renders production batches after loading', async () => {
     render(<ProductionBatchesList />);
-    await waitFor(() => expect(screen.getByText(/BATCH001/)).toBeInTheDocument());
+    await screen.findByText(/BATCH001/);
   });
 
   test('handles error during data loading', async () => {

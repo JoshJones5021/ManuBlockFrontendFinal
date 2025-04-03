@@ -82,9 +82,7 @@ describe('ManufacturerDashboard Component', () => {
     renderWithRouter(<ManufacturerDashboard />);
     
     // Check for the dashboard title
-    const dashboardTitle = await waitFor(() => 
-      screen.getByText('Manufacturer Dashboard')
-    );
+    const dashboardTitle = await screen.findByText('Manufacturer Dashboard');
     expect(dashboardTitle).toBeInTheDocument();
   });
 
@@ -92,9 +90,7 @@ describe('ManufacturerDashboard Component', () => {
     renderWithRouter(<ManufacturerDashboard />);
     
     // Look for the specific heading element
-    const batchesHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Production Batches' })
-    );
+    const batchesHeading = await screen.findByRole('heading', { name: 'Production Batches' });
     expect(batchesHeading).toBeInTheDocument();
     
     // Check for empty state message
@@ -106,9 +102,7 @@ describe('ManufacturerDashboard Component', () => {
     renderWithRouter(<ManufacturerDashboard />);
     
     // Look for the specific heading element
-    const ordersHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Recent Orders' })
-    );
+    const ordersHeading = await screen.findByRole('heading', { name: 'Recent Orders' });
     expect(ordersHeading).toBeInTheDocument();
   });
 
@@ -116,9 +110,7 @@ describe('ManufacturerDashboard Component', () => {
     renderWithRouter(<ManufacturerDashboard />);
     
     // Look for the specific heading element
-    const requestsHeading = await waitFor(() => 
-      screen.getByRole('heading', { name: 'Material Requests' })
-    );
+    const requestsHeading = await screen.findByRole('heading', { name: 'Material Requests' });
     expect(requestsHeading).toBeInTheDocument();
   });
 

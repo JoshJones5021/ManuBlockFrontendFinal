@@ -166,9 +166,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => 
-      expect(screen.getByText('Failed to load orders. Please try again later.')).toBeInTheDocument()
-    );
+    await screen.findByText('Failed to load orders. Please try again later.');
   });
 
   test('sorts orders by date (newest first)', async () => {
@@ -184,7 +182,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-002')).toBeInTheDocument());
+    await screen.findByText('ORD-002');
     
     // Check order of elements in the DOM
     const orderNumbers = screen.getAllByText(/ORD-00\d/);
@@ -198,7 +196,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     
     // Click on "Active" filter
     await act(async () => {
@@ -227,9 +225,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => 
-      expect(screen.getByText('No orders found.')).toBeInTheDocument()
-    );
+    await screen.findByText('No orders found.');
     
     expect(screen.getByText('Browse Products')).toBeInTheDocument();
   });
@@ -237,7 +233,7 @@ describe('OrdersList Component', () => {
   test('shows order details when clicking "View Details"', async () => {
     renderComponent();
     
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     
     // Click "View Details" for the first order with status "Delivered"
     const viewButtons = screen.getAllByText('View Details');
@@ -256,7 +252,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     
     // Click "Confirm Receipt" for the first order (which has "Delivered" status)
     const firstOrderRow = screen.getByText('ORD-001').closest('tr');
@@ -287,7 +283,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-002')).toBeInTheDocument());
+    await screen.findByText('ORD-002');
     
     // Click "Cancel" for the second order (which has "In Production" status)
     const secondOrderRow = screen.getByText('ORD-002').closest('tr');
@@ -318,7 +314,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     
     // Open modal
     const firstOrderRow = screen.getByText('ORD-001').closest('tr');
@@ -349,7 +345,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     
     // Check total for first order (2 * $25.99 = $51.98)
     const orderRows = screen.getAllByRole('row');
@@ -383,7 +379,7 @@ describe('OrdersList Component', () => {
   test('displays correct status badges with appropriate colors', async () => {
     renderComponent();
     
-    await waitFor(() => expect(screen.getByText('ORD-001')).toBeInTheDocument());
+    await screen.findByText('ORD-001');
     
     // Find status badges by their specific role and class attributes instead of by text
     const statusCells = screen.getAllByRole('cell').filter(
@@ -428,7 +424,7 @@ describe('OrdersList Component', () => {
       renderComponent();
     });
     
-    await waitFor(() => expect(screen.getByText('ORD-004')).toBeInTheDocument());
+    await screen.findByText('ORD-004');
     
     // Should show 0 items
     expect(screen.getByText('0 items')).toBeInTheDocument();

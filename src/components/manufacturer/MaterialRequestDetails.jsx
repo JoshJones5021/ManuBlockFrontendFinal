@@ -201,7 +201,7 @@ const MaterialRequestDetails = () => {
                 Supplier
               </h3>
               <p className="text-base">
-                {supplier ? supplier.username : 'Unknown Supplier'}
+                {materialRequest.supplier ? materialRequest.supplier.username : 'Unknown Supplier'}
               </p>
             </div>
 
